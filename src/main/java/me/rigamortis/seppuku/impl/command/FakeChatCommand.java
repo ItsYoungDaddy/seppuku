@@ -11,7 +11,7 @@ import net.minecraft.util.text.TextComponentString;
 public final class FakeChatCommand extends Command {
 
     public FakeChatCommand() {
-        super("FakeChat", new String[] {"FChat", "TellRaw"}, "Allows you to add a fake chat message", "FakeChat <Message>");
+        super("FakeChat", new String[]{"FChat", "TellRaw"}, "Allows you to add a fake chat message", "FakeChat <Message>");
     }
 
     @Override
@@ -27,7 +27,7 @@ public final class FakeChatCommand extends Command {
 
         for (int i = 1; i < split.length; i++) {
             final String s = split[i];
-            sb.append(s + (i == split.length - 1 ? "" : " "));
+            sb.append(s).append(i == split.length - 1 ? "" : " ");
         }
 
         final String message = sb.toString();

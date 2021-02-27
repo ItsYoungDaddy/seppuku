@@ -6,6 +6,7 @@ import me.rigamortis.seppuku.api.module.Module;
 import me.rigamortis.seppuku.api.util.FileUtil;
 import me.rigamortis.seppuku.api.value.Value;
 
+import java.awt.*;
 import java.io.File;
 
 /**
@@ -36,6 +37,11 @@ public class ModuleConfig extends Configurable {
             if (entry.getKey().equalsIgnoreCase("Keybind")) {
                 module.setKey(entry.getValue().getAsString());
             }
+
+            if (entry.getKey().equalsIgnoreCase("Name")) {
+                module.setDisplayName(entry.getValue().getAsString());
+            }
+
             // Check if we are already enabled
             if (entry.getKey().equalsIgnoreCase("Enabled") && !module.isEnabled() && module.getType() != Module.ModuleType.HIDDEN) {
                 if (entry.getValue().getAsBoolean()) {
@@ -55,8 +61,12 @@ public class ModuleConfig extends Configurable {
                         } else if (val.getValue().getClass() == Integer.class) {
                             val.setValue(entry.getValue().getAsInt());
                         }
+                    } else if (val.getValue() instanceof String && !(val.getValue() instanceof Enum)) {
+                        val.setValue(entry.getValue().getAsString());
                     } else if (val.getValue() instanceof Enum) {
                         val.setEnumValue(entry.getValue().getAsString());
+                    } else if (val.getValue() instanceof Color) {
+                        val.setValue(new Color((int) Long.parseLong(entry.getValue().getAsString(), 16)));
                     }
                 }
             }
@@ -83,8 +93,12 @@ public class ModuleConfig extends Configurable {
                     } else if (value.getValue().getClass() == Integer.class) {
                         moduleJsonObject.addProperty(value.getName(), (Integer) value.getValue());
                     }
+                } else if (value.getValue() instanceof String && !(value.getValue() instanceof Enum)) {
+                    moduleJsonObject.addProperty(value.getName(), (String) value.getValue());
                 } else if (value.getValue() instanceof Enum) {
                     moduleJsonObject.addProperty(value.getName(), ((Enum) value.getValue()).name());
+                } else if (value.getValue() instanceof Color) {
+                    moduleJsonObject.addProperty(value.getName(), Integer.toHexString(((Color) value.getValue()).getRGB()).toUpperCase());
                 }
             });
         }

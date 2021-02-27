@@ -35,7 +35,7 @@ public final class JavaScriptCommand extends Command {
 
         for (int i = 1; i < split.length; i++) {
             final String s = split[i];
-            sb.append(s + (i == split.length - 1 ? "" : " "));
+            sb.append(s).append(i == split.length - 1 ? "" : " ");
         }
 
         final String syntax = sb.toString();
@@ -45,17 +45,14 @@ public final class JavaScriptCommand extends Command {
         } catch (TimeoutException e) {
             Seppuku.INSTANCE.errorChat("Took too long to execute");
             Executors.newCachedThreadPool().shutdown();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-            Seppuku.INSTANCE.errorChat(e.getMessage());
-        } catch (ExecutionException e) {
+        } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
             Seppuku.INSTANCE.errorChat(e.getMessage());
         }
     }
 
     public static class ScriptRunnable implements Runnable {
-        private String syntax;
+        private final String syntax;
 
         public ScriptRunnable(String syntax) {
             this.syntax = syntax;

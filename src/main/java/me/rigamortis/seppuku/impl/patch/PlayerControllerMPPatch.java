@@ -25,6 +25,7 @@ public final class PlayerControllerMPPatch extends ClassPatch {
 
     /**
      * This is called when we finish mining a block
+     *
      * @param methodNode
      * @param env
      */
@@ -57,6 +58,7 @@ public final class PlayerControllerMPPatch extends ClassPatch {
     /**
      * Our onPlayerDestroyBlock hook used to get block coordinates
      * of what we just broke
+     *
      * @param pos
      * @return
      */
@@ -70,6 +72,7 @@ public final class PlayerControllerMPPatch extends ClassPatch {
 
     /**
      * This is where minecraft starts mining
+     *
      * @param methodNode
      * @param env
      */
@@ -104,6 +107,7 @@ public final class PlayerControllerMPPatch extends ClassPatch {
     /**
      * Our clickBlock hook used to detect when we first
      * click on a block
+     *
      * @param pos
      * @param face
      * @return
@@ -119,6 +123,7 @@ public final class PlayerControllerMPPatch extends ClassPatch {
     /**
      * This is where minecraft handles abort destroying blocks
      * and resetting break progress
+     *
      * @param methodNode
      * @param env
      */
@@ -145,6 +150,7 @@ public final class PlayerControllerMPPatch extends ClassPatch {
     /**
      * Our resetBlockRemoving used to detect when we stop mining
      * It is cancellable so we can save break progress
+     *
      * @return
      */
     public static boolean resetBlockRemovingHook() {
@@ -158,6 +164,7 @@ public final class PlayerControllerMPPatch extends ClassPatch {
     /**
      * This is where minecraft handles breaking blocks and calculates
      * block hit delay/current damage
+     *
      * @param methodNode
      * @param env
      */
@@ -192,6 +199,7 @@ public final class PlayerControllerMPPatch extends ClassPatch {
     /**
      * Our onPlayerDamageBlock hook used to detect if we are
      * currently mining a block
+     *
      * @param pos
      * @param face
      * @return
@@ -207,6 +215,7 @@ public final class PlayerControllerMPPatch extends ClassPatch {
     /**
      * This is where minecraft handles right clicking
      * on blocks
+     *
      * @param methodNode
      * @param env
      */
@@ -349,4 +358,89 @@ public final class PlayerControllerMPPatch extends ClassPatch {
         return event.isCanceled();
     }
 
+    @MethodPatch(
+            mcpName = "getIsHittingBlock",
+            notchName = "m",
+            mcpDesc = "()Z")
+    public void getIsHittingBlock(MethodNode methodNode, PatchManager.Environment env) {
+        //create a list of instructions
+        final InsnList insnList = new InsnList();
+        //call our hook function
+        insnList.add(new MethodInsnNode(INVOKESTATIC, Type.getInternalName(this.getClass()), "getIsHittingBlockHook", "()Z", false));
+        //create a label to jump to
+        final LabelNode jmp = new LabelNode();
+        //add "if equals"
+        insnList.add(new JumpInsnNode(IFEQ, jmp));
+        //add 0 or false
+        insnList.add(new InsnNode(ICONST_0));
+        //return so the rest of the function doesnt get called
+        insnList.add(new InsnNode(IRETURN));
+        //add our label
+        insnList.add(jmp);
+        //insert the list of instructs at the top of the function
+        methodNode.instructions.insert(insnList);
+    }
+
+    /**
+     * Our getIsHittingBlockHook hook used to override block-hitting hand activity
+     *
+     * @return true if the event is cancelled
+     */
+    public static boolean getIsHittingBlockHook() {
+        //dispatch our event
+        final EventHittingBlock event = new EventHittingBlock();
+        Seppuku.INSTANCE.getEventManager().dispatchEvent(event);
+        return event.isCanceled();
+    }
+
+    @MethodPatch(
+            mcpName = "getBlockReachDistance",
+            notchName = "d",
+            mcpDesc = "()F")
+    public void getBlockReachDistance(MethodNode methodNode, PatchManager.Environment env) {
+        final InsnList insnList = new InsnList();
+        insnList.add(new TypeInsnNode(NEW, Type.getInternalName(EventPlayerReach.class)));
+        insnList.add(new InsnNode(DUP));
+        insnList.add(new MethodInsnNode(INVOKESPECIAL, Type.getInternalName(EventPlayerReach.class), "<init>", "()V", false));
+        insnList.add(new VarInsnNode(ASTORE, 2));
+        insnList.add(new FieldInsnNode(GETSTATIC, Type.getInternalName(Seppuku.class), "INSTANCE", "Lme/rigamortis/seppuku/Seppuku;"));
+        insnList.add(new MethodInsnNode(INVOKEVIRTUAL, Type.getInternalName(Seppuku.class), "getEventManager", "()Lteam/stiff/pomelo/EventManager;", false));
+        insnList.add(new VarInsnNode(ALOAD, 2));
+        insnList.add(new MethodInsnNode(INVOKEINTERFACE, Type.getInternalName(EventManager.class), "dispatchEvent", "(Ljava/lang/Object;)Ljava/lang/Object;", true));
+        insnList.add(new InsnNode(POP));
+        insnList.add(new VarInsnNode(ALOAD, 2));
+        insnList.add(new MethodInsnNode(INVOKEVIRTUAL, Type.getInternalName(EventPlayerReach.class), "isCanceled", "()Z", false));
+        final LabelNode jmp = new LabelNode();
+        insnList.add(new JumpInsnNode(IFEQ, jmp));
+        insnList.add(new VarInsnNode(ALOAD, 2));
+        insnList.add(new MethodInsnNode(INVOKEVIRTUAL, Type.getInternalName(EventPlayerReach.class), "getReach", "()F", false));
+        insnList.add(new InsnNode(FRETURN));
+        insnList.add(jmp);
+        methodNode.instructions.insert(insnList);
+    }
+
+    @MethodPatch(
+            mcpName = "extendedReach",
+            notchName = "i",
+            mcpDesc = "()Z")
+    public void extendedReach(MethodNode methodNode, PatchManager.Environment env) {
+        final InsnList insnList = new InsnList();
+        insnList.add(new TypeInsnNode(NEW, Type.getInternalName(EventExtendPlayerReach.class)));
+        insnList.add(new InsnNode(DUP));
+        insnList.add(new MethodInsnNode(INVOKESPECIAL, Type.getInternalName(EventExtendPlayerReach.class), "<init>", "()V", false));
+        insnList.add(new VarInsnNode(ASTORE, 2));
+        insnList.add(new FieldInsnNode(GETSTATIC, Type.getInternalName(Seppuku.class), "INSTANCE", "Lme/rigamortis/seppuku/Seppuku;"));
+        insnList.add(new MethodInsnNode(INVOKEVIRTUAL, Type.getInternalName(Seppuku.class), "getEventManager", "()Lteam/stiff/pomelo/EventManager;", false));
+        insnList.add(new VarInsnNode(ALOAD, 2));
+        insnList.add(new MethodInsnNode(INVOKEINTERFACE, Type.getInternalName(EventManager.class), "dispatchEvent", "(Ljava/lang/Object;)Ljava/lang/Object;", true));
+        insnList.add(new InsnNode(POP));
+        insnList.add(new VarInsnNode(ALOAD, 2));
+        insnList.add(new MethodInsnNode(INVOKEVIRTUAL, Type.getInternalName(EventExtendPlayerReach.class), "isCanceled", "()Z", false));
+        final LabelNode jmp = new LabelNode();
+        insnList.add(new JumpInsnNode(IFEQ, jmp));
+        insnList.add(new InsnNode(ICONST_1));
+        insnList.add(new InsnNode(IRETURN));
+        insnList.add(jmp);
+        methodNode.instructions.insert(insnList);
+    }
 }

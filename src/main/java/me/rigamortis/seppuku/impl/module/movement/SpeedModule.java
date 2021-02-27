@@ -24,7 +24,7 @@ public final class SpeedModule extends Module {
         VANILLA, BHOP
     }
 
-    public final Value<Float> speed = new Value<Float>("Speed", new String[]{"Spd"}, "Speed multiplier, higher numbers equal faster motion.", 0.1f, 0.0f, 10.0f, 0.1f);
+    public final Value<Float> speed = new Value<Float>("Speed", new String[]{"Spd", "Amount", "A", "S"}, "Speed multiplier, higher numbers equal faster motion.", 0.1f, 0.0f, 10.0f, 0.1f);
 
     private int tick;
     private double prevDistance;
@@ -101,10 +101,8 @@ public final class SpeedModule extends Module {
             this.movementSpeed = Math.max(this.movementSpeed, this.getDefaultSpeed());
             final double[] direction = MathUtil.directionSpeed(this.movementSpeed);
 
-            if (direction != null) {
-                mc.player.motionX = direction[0];
-                mc.player.motionZ = direction[1];
-            }
+            mc.player.motionX = direction[0];
+            mc.player.motionZ = direction[1];
 
             this.tick += 1;
         }

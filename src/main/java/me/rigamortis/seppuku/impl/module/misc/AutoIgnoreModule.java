@@ -3,6 +3,7 @@ package me.rigamortis.seppuku.impl.module.misc;
 import me.rigamortis.seppuku.Seppuku;
 import me.rigamortis.seppuku.api.event.EventStageable;
 import me.rigamortis.seppuku.api.event.network.EventReceivePacket;
+import me.rigamortis.seppuku.api.friend.Friend;
 import me.rigamortis.seppuku.api.ignore.Ignored;
 import me.rigamortis.seppuku.api.module.Module;
 import me.rigamortis.seppuku.api.value.Value;
@@ -14,14 +15,19 @@ import team.stiff.pomelo.impl.annotated.handler.annotation.Listener;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * Author Seth
- * 7/1/2019 @ 10:22 PM.
+ * @author Seth
+ * @author noil
  */
 public final class AutoIgnoreModule extends Module {
 
+    private static final String REGEX_NAME = "<(\\S+)\\s*(\\S+?)?>\\s(.*)";
+
     public final Value<Mode> mode = new Value<Mode>("Mode", new String[]{"Mode", "M"}, "The auto ignore mode to use.", Mode.CLIENT);
+    public final Value<Boolean> allowFriends = new Value<Boolean>("AllowFriends", new String[]{"AllowF", "Friends", "AF", "F"}, "If enabled, any friend's message will not be auto-ignored.", true);
 
     private List<String> blacklist = new ArrayList<>();
 
@@ -44,21 +50,28 @@ public final class AutoIgnoreModule extends Module {
     }
 
     @Listener
-    public void recievePacket(EventReceivePacket event) {
+    public void receivePacket(EventReceivePacket event) {
         if (event.getStage() == EventStageable.EventStage.PRE) {
             if (event.getPacket() instanceof SPacketChat) {
                 final SPacketChat packet = (SPacketChat) event.getPacket();
                 if (packet.getChatComponent() instanceof TextComponentString) {
                     final TextComponentString component = (TextComponentString) packet.getChatComponent();
-                    final String message = StringUtils.stripControlCodes(component.getUnformattedText());
-
-                    final boolean serverMessage = message.startsWith("\247c") || message.startsWith("\2475");
-
+                    final String message = StringUtils.stripControlCodes(component.getFormattedText());
+                    final boolean serverMessage = component.getFormattedText().startsWith("\247c") || component.getFormattedText().startsWith("\247e") || component.getFormattedText().startsWith("\2475");
                     if (!serverMessage && this.blacklistContains(message)) {
-                        final String[] split = message.split(" ");
+                        Pattern chatUsernamePattern = Pattern.compile(REGEX_NAME);
+                        Matcher chatUsernameMatcher = chatUsernamePattern.matcher(message);
+                        if (chatUsernameMatcher.find()) {
+                            String username = chatUsernameMatcher.group(1).replaceAll(">", "").toLowerCase();
 
-                        if (split != null) {
-                            final String username = split[0].replace("<", "").replace(">", "");
+                            // Check if the user is a friend
+                            if (this.allowFriends.getValue()) {
+                                final Friend friend = Seppuku.INSTANCE.getFriendManager().find(username);
+                                if (friend != null) {
+                                    return;
+                                }
+                            }
+
                             final Ignored ignored = Seppuku.INSTANCE.getIgnoredManager().find(username);
                             if (ignored == null && !username.equalsIgnoreCase(Minecraft.getMinecraft().session.getUsername())) {
                                 switch (this.mode.getValue()) {

@@ -4,6 +4,7 @@ import me.rigamortis.seppuku.api.event.player.EventPlayerUpdate;
 import me.rigamortis.seppuku.api.event.render.EventRender3D;
 import me.rigamortis.seppuku.api.module.Module;
 import me.rigamortis.seppuku.api.util.MathUtil;
+import me.rigamortis.seppuku.api.util.RenderUtil;
 import me.rigamortis.seppuku.api.value.Value;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
@@ -17,22 +18,24 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3i;
 import team.stiff.pomelo.impl.annotated.handler.annotation.Listener;
 
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL11.glLineWidth;
 
 /**
  * created by noil on 10/4/2019 at 6:05 PM
  */
 public final class HolesModule extends Module {
 
+    public final Value<Color> color = new Value<Color>("Color", new String[]{"col", "c"}, "Change the color of holes.", new Color(153, 0, 238));
     public final Value<Integer> radius = new Value<Integer>("Radius", new String[]{"Radius", "Range", "Distance"}, "Radius in blocks to scan for holes.", 8, 0, 32, 1);
     public final Value<Boolean> fade = new Value<Boolean>("Fade", new String[]{"f"}, "Fades the opacity of the hole the closer your player is to it when enabled.", true);
 
     public final List<Hole> holes = new ArrayList<>();
 
-    private ICamera camera = new Frustum();
+    private final ICamera camera = new Frustum();
 
     public HolesModule() {
         super("Holes", new String[]{"Hole", "HoleESP"}, "Shows areas the player could fall into, holes.", "NONE", -1, ModuleType.RENDER);
@@ -73,7 +76,10 @@ public final class HolesModule extends Module {
     @Listener
     public void onRender(EventRender3D event) {
         final Minecraft mc = Minecraft.getMinecraft();
+        if (mc.getRenderViewEntity() == null)
+            return;
 
+        RenderUtil.begin3D();
         for (Hole hole : this.holes) {
             final AxisAlignedBB bb = new AxisAlignedBB(
                     hole.getX() - mc.getRenderManager().viewerPosX,
@@ -92,34 +98,22 @@ public final class HolesModule extends Module {
                     bb.maxY + mc.getRenderManager().viewerPosY,
                     bb.maxZ + mc.getRenderManager().viewerPosZ))) {
                 GlStateManager.pushMatrix();
-                GlStateManager.enableBlend();
-                GlStateManager.disableDepth();
-                GlStateManager.tryBlendFuncSeparate(770, 771, 0, 1);
-                GlStateManager.disableTexture2D();
-                GlStateManager.depthMask(false);
-                glEnable(GL_LINE_SMOOTH);
-                glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
                 glLineWidth(1.5f);
-
                 final double dist = mc.player.getDistance(hole.getX() + 0.5f, hole.getY() + 0.5f, hole.getZ() + 0.5f) * 0.75f;
-
                 float alpha = MathUtil.clamp((float) (dist * 255.0f / (this.radius.getValue()) / 255.0f), 0.0f, 0.3f);
-
-                RenderGlobal.renderFilledBox(bb, 0, 1, 0, this.fade.getValue() ? alpha : 0.25f);
-                RenderGlobal.drawBoundingBox(bb.minX, bb.minY, bb.minZ, bb.maxX, bb.maxY, bb.maxZ, 0, 1, 0, this.fade.getValue() ? alpha : 0.25f);
-                glDisable(GL_LINE_SMOOTH);
-                GlStateManager.depthMask(true);
-                GlStateManager.enableDepth();
-                GlStateManager.enableTexture2D();
-                GlStateManager.disableBlend();
+                RenderGlobal.renderFilledBox(bb, this.color.getValue().getRed() / 255.0f, this.color.getValue().getGreen() / 255.0f, this.color.getValue().getRed() / 255.0f, this.fade.getValue() ? alpha : 0.5f);
+                RenderGlobal.drawBoundingBox(bb.minX, bb.minY, bb.minZ, bb.maxX, bb.maxY, bb.maxZ, this.color.getValue().getRed() / 255.0f, this.color.getValue().getGreen() / 255.0f, this.color.getValue().getRed() / 255.0f, this.fade.getValue() ? alpha : 0.5f);
                 GlStateManager.popMatrix();
             }
         }
+        RenderUtil.end3D();
     }
 
     private boolean isBlockValid(IBlockState blockState, BlockPos blockPos) {
-        if (this.holes.contains(blockPos))
-            return false;
+        for (Hole hole : this.holes) {
+            if (hole.getX() == blockPos.getX() && hole.getY() == blockPos.getY() && hole.getZ() == blockPos.getZ())
+                return false;
+        }
 
         if (blockState.getBlock() != Blocks.AIR)
             return false;

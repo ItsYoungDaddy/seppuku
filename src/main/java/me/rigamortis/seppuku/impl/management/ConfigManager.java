@@ -2,7 +2,8 @@ package me.rigamortis.seppuku.impl.management;
 
 import me.rigamortis.seppuku.Seppuku;
 import me.rigamortis.seppuku.api.config.Configurable;
-import me.rigamortis.seppuku.api.gui.hud.component.DraggableHudComponent;
+import me.rigamortis.seppuku.api.event.client.EventLoadConfig;
+import me.rigamortis.seppuku.api.event.client.EventSaveConfig;
 import me.rigamortis.seppuku.impl.config.*;
 
 import java.io.File;
@@ -51,17 +52,19 @@ public final class ConfigManager {
             this.configurableList.add(new ModuleConfig(this.moduleConfigDir, module));
         });
 
-        Seppuku.INSTANCE.getHudManager().getComponentList().stream().filter(hudComponent -> hudComponent instanceof DraggableHudComponent).forEach(hudComponent -> {
-            this.configurableList.add(new HudConfig(this.hudComponentConfigDir, (DraggableHudComponent) hudComponent));
+        Seppuku.INSTANCE.getHudManager().getComponentList().stream().forEach(hudComponent -> {
+            this.configurableList.add(new HudConfig(this.hudComponentConfigDir, hudComponent));
         });
 
         this.configurableList.add(new FriendConfig(configDir));
         this.configurableList.add(new XrayConfig(configDir));
+        this.configurableList.add(new SearchConfig(configDir));
         this.configurableList.add(new MacroConfig(configDir));
         this.configurableList.add(new WaypointsConfig(configDir));
         this.configurableList.add(new WorldConfig(configDir));
         this.configurableList.add(new IgnoreConfig(configDir));
         this.configurableList.add(new AutoIgnoreConfig(configDir));
+        this.configurableList.add(new AltConfig(configDir));
 
         if (this.firstLaunch) {
             this.saveAll();
@@ -70,20 +73,37 @@ public final class ConfigManager {
         }
     }
 
-    public void saveAll() {
-        new Thread(() -> {
-            for (Configurable cfg : configurableList) {
+    public void save(Class configurableClassType) {
+        for (Configurable cfg : configurableList) {
+            if (cfg.getClass().isAssignableFrom(configurableClassType)) {
                 cfg.onSave();
             }
-        }).start();
+        }
+
+        Seppuku.INSTANCE.getEventManager().dispatchEvent(new EventSaveConfig());
+    }
+
+    public void saveAll() {
+        for (Configurable cfg : configurableList) {
+            cfg.onSave();
+        }
+        Seppuku.INSTANCE.getEventManager().dispatchEvent(new EventSaveConfig());
+    }
+
+    public void load(Class configurableClassType) {
+        for (Configurable cfg : configurableList) {
+            if (cfg.getClass().isAssignableFrom(configurableClassType)) {
+                cfg.onLoad();
+            }
+        }
+        Seppuku.INSTANCE.getEventManager().dispatchEvent(new EventLoadConfig());
     }
 
     public void loadAll() {
-        new Thread(() -> {
-            for (Configurable cfg : configurableList) {
-                cfg.onLoad();
-            }
-        }).start();
+        for (Configurable cfg : configurableList) {
+            cfg.onLoad();
+        }
+        Seppuku.INSTANCE.getEventManager().dispatchEvent(new EventLoadConfig());
     }
 
     public File getConfigDir() {

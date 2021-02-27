@@ -39,17 +39,18 @@ public final class PatchManager {
         this.patchList.add(new EntityPigPatch());
         this.patchList.add(new EntityLlamaPatch());
         this.patchList.add(new AbstractHorsePatch());
-        this.patchList.add(new BlockPatch());
+        this.patchList.add(new BlockRendererDispatcherPatch());
+        //this.patchList.add(new BlockPatch());
         this.patchList.add(new BlockSoulSandPatch());
         this.patchList.add(new KeyBindingPatch());
-        this.patchList.add(new BlockModelRendererPatch());
+        //this.patchList.add(new BlockModelRendererPatch());
         //this.patchList.add(new BlockFluidRendererPatch());
         this.patchList.add(new ActiveRenderInfoPatch());
         this.patchList.add(new BlockSlimePatch());
         this.patchList.add(new BlockLiquidPatch());
-        this.patchList.add(new BlockStairsPatch());
-        this.patchList.add(new BlockPanePatch());
-        this.patchList.add(new BlockFencePatch());
+        //this.patchList.add(new BlockStairsPatch());
+        //this.patchList.add(new BlockPanePatch());
+        //this.patchList.add(new BlockFencePatch());
         this.patchList.add(new EntityPatch());
         this.patchList.add(new AbstractClientPlayerPatch());
         this.patchList.add(new BiomeColorHelperPatch());
@@ -58,6 +59,7 @@ public final class PatchManager {
         this.patchList.add(new ChunkPatch());
         this.patchList.add(new GuiScreenPatch());
         this.patchList.add(new RenderGlobalPatch());
+        this.patchList.add(new GuiChatPatch());
 
         //load custom external patches
         //TODO this needs more testing
@@ -87,12 +89,10 @@ public final class PatchManager {
                     if (ClassPatch.class.isAssignableFrom(clazz)) {
                         //create a new instance of the class
                         final ClassPatch patch = (ClassPatch) clazz.newInstance();
-
-                        if (patch != null) {
-                            //add the class to our list of patches
-                            this.patchList.add(patch);
-                            System.out.println("[Seppuku] Found external patch " + patch.getMcpName().replace(".", "/"));
-                        }
+                        //add the class to our list of patches
+                        this.patchList.add(patch);
+                        //Seppuku.INSTANCE.getLogger().log(Level.INFO, "Found external patch " + patch.getMcpName().replace(".", "/"));
+                        System.out.println("Found external patch " + patch.getMcpName().replace(".", "/"));
                     }
                 }
             }

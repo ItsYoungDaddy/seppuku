@@ -22,16 +22,16 @@ import team.stiff.pomelo.impl.annotated.handler.annotation.Listener;
  */
 public final class StorageESPModule extends Module {
 
-    public final Value<Mode> mode = new Value<Mode>("Mode", new String[]{"Mode", "M"}, "Rendering mode", Mode.THREE_DIMENSIONAL);
+    public final Value<Mode> mode = new Value<Mode>("Mode", new String[]{"Mode", "M"}, "Rendering mode", Mode.THREE_D);
 
     private enum Mode {
-        TWO_DIMENSIONAL, THREE_DIMENSIONAL
+        TWO_D, THREE_D // TWO_DIMENSIONAL, THREE_DIMENSIONAL
     }
 
-    public final Value<Boolean> name = new Value<Boolean>("Name", new String[]{"Nam", "N", "Names"}, "Renders the name of the drawn storage object.", false);
+    public final Value<Boolean> nametag = new Value<Boolean>("Nametag", new String[]{"Nametag", "Tag", "Tags", "Ntag", "name", "names"}, "Renders the name of the drawn storage object.", false);
     public final Value<Integer> opacity = new Value<Integer>("Opacity", new String[]{"Opacity", "Transparency", "Alpha"}, "Opacity of the rendered esp.", 128, 0, 255, 1);
 
-    private ICamera camera = new Frustum();
+    private final ICamera camera = new Frustum();
 
     public StorageESPModule() {
         super("Storage", new String[]{"StorageESP", "ChestFinder", "ChestESP"}, "Highlights different types of storage entities.", "NONE", -1, ModuleType.RENDER);
@@ -39,11 +39,10 @@ public final class StorageESPModule extends Module {
 
     @Listener
     public void render2D(EventRender2D event) {
-        final Minecraft mc = Minecraft.getMinecraft();
-
-        if (this.mode.getValue() == Mode.THREE_DIMENSIONAL && !this.name.getValue()) // if 3D and names are off, return
+        if (this.mode.getValue() == Mode.THREE_D && !this.nametag.getValue()) // if 3D and names are off, return
             return;
 
+        final Minecraft mc = Minecraft.getMinecraft();
         for (TileEntity te : mc.world.loadedTileEntityList) {
             if (te != null) {
                 if (this.isTileStorage(te)) {
@@ -51,12 +50,12 @@ public final class StorageESPModule extends Module {
                     if (bb != null) {
                         final float[] bounds = this.convertBounds(bb, event.getScaledResolution().getScaledWidth(), event.getScaledResolution().getScaledHeight());
                         if (bounds != null) {
-                            if (this.mode.getValue() == Mode.TWO_DIMENSIONAL) { // 2D
+                            if (this.mode.getValue() == Mode.TWO_D) { // 2D
                                 RenderUtil.drawOutlineRect(bounds[0], bounds[1], bounds[2], bounds[3], 1.5f, ColorUtil.changeAlpha(0xAA000000, this.opacity.getValue()));
                                 RenderUtil.drawOutlineRect(bounds[0] - 0.5f, bounds[1] - 0.5f, bounds[2] + 0.5f, bounds[3] + 0.5f, 0.5f, ColorUtil.changeAlpha(this.getColor(te), this.opacity.getValue()));
                             }
 
-                            if (this.name.getValue()) {
+                            if (this.nametag.getValue()) {
                                 final String name = te.getBlockType().getLocalizedName();
                                 GL11.glEnable(GL11.GL_BLEND);
                                 mc.fontRenderer.drawStringWithShadow(name, bounds[0] + (bounds[2] - bounds[0]) / 2 - mc.fontRenderer.getStringWidth(name) / 2, bounds[1] + (bounds[3] - bounds[1]) - mc.fontRenderer.FONT_HEIGHT - 1, ColorUtil.changeAlpha(0xFFFFFFFF, this.opacity.getValue()));
@@ -71,13 +70,19 @@ public final class StorageESPModule extends Module {
 
     @Listener
     public void render3D(EventRender3D event) {
-        final Minecraft mc = Minecraft.getMinecraft();
-        if (this.mode.getValue() == Mode.THREE_DIMENSIONAL) {
+        if (this.mode.getValue() == Mode.THREE_D) {
+            final Minecraft mc = Minecraft.getMinecraft();
+            if (mc.getRenderViewEntity() == null)
+                return;
+
+            RenderUtil.begin3D();
             for (TileEntity te : mc.world.loadedTileEntityList) {
                 if (te != null) {
                     if (this.isTileStorage(te)) {
                         final AxisAlignedBB bb = this.boundingBoxForEnt(te);
                         if (bb != null) {
+                            //RenderUtil.drawFilledBox(bb, ColorUtil.changeAlpha(this.getColor(te), this.opacity.getValue()));
+                            //RenderUtil.drawBoundingBox(bb, 1.5f, ColorUtil.changeAlpha(this.getColor(te), this.opacity.getValue()));
                             camera.setPosition(mc.getRenderViewEntity().posX, mc.getRenderViewEntity().posY, mc.getRenderViewEntity().posZ);
 
                             if (camera.isBoundingBoxInFrustum(new AxisAlignedBB(bb.minX + mc.getRenderManager().viewerPosX,
@@ -93,6 +98,7 @@ public final class StorageESPModule extends Module {
                     }
                 }
             }
+            RenderUtil.end3D();
         }
     }
 
@@ -100,10 +106,10 @@ public final class StorageESPModule extends Module {
         if (te instanceof TileEntityChest) {
             return true;
         }
-        if (te instanceof TileEntityDispenser) {
+        if (te instanceof TileEntityDropper) {
             return true;
         }
-        if (te instanceof TileEntityDropper) {
+        if (te instanceof TileEntityDispenser) {
             return true;
         }
         if (te instanceof TileEntityFurnace) {
@@ -148,7 +154,7 @@ public final class StorageESPModule extends Module {
                             te.getPos().getX() + 0.9375d - mc.getRenderManager().viewerPosX,
                             te.getPos().getY() + 0.875d - mc.getRenderManager().viewerPosY,
                             te.getPos().getZ() + 0.9375d + 1 - mc.getRenderManager().viewerPosZ);
-                } else if (chest.adjacentChestXPos == null && chest.adjacentChestZPos == null && chest.adjacentChestZNeg == null && chest.adjacentChestXNeg == null) {
+                } else if (chest.adjacentChestXPos == null && chest.adjacentChestZNeg == null) {
                     return new AxisAlignedBB(
                             te.getPos().getX() + 0.0625d - mc.getRenderManager().viewerPosX,
                             te.getPos().getY() - mc.getRenderManager().viewerPosY,
@@ -187,10 +193,10 @@ public final class StorageESPModule extends Module {
         if (te instanceof TileEntityChest) {
             return 0xFFFFC417;
         }
-        if (te instanceof TileEntityDispenser) {
+        if (te instanceof TileEntityDropper) {
             return 0xFF4E4E4E;
         }
-        if (te instanceof TileEntityDropper) {
+        if (te instanceof TileEntityDispenser) {
             return 0xFF4E4E4E;
         }
         if (te instanceof TileEntityHopper) {
@@ -207,7 +213,7 @@ public final class StorageESPModule extends Module {
         }
         if (te instanceof TileEntityShulkerBox) {
             final TileEntityShulkerBox shulkerBox = (TileEntityShulkerBox) te;
-            return (255 << 24) | shulkerBox.getColor().getColorValue() & 0xFFFFFFFF;
+            return (255 << 24) | shulkerBox.getColor().getColorValue();
         }
         return 0xFFFFFFFF;
     }
@@ -242,10 +248,6 @@ public final class StorageESPModule extends Module {
 
         for (Vec3d vec : corners) {
             final GLUProjection.Projection projection = GLUProjection.getInstance().project(vec.x, vec.y, vec.z, GLUProjection.ClampMode.NONE, true);
-
-            if (projection == null) {
-                return null;
-            }
 
             x = Math.max(x, (float) projection.getX());
             y = Math.max(y, (float) projection.getY());

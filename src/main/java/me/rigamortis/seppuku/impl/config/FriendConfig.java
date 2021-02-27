@@ -23,8 +23,22 @@ public final class FriendConfig extends Configurable {
         super.onLoad();
         this.getJsonObject().entrySet().forEach(entry -> {
             final String name = entry.getKey();
-            final String alias = entry.getValue().getAsJsonArray().get(0).getAsString();
-            final String uuid = entry.getValue().getAsJsonArray().get(1).getAsString();
+
+            String alias = "";
+            String uuid = "";
+            JsonArray jsonArray = entry.getValue().getAsJsonArray();
+
+            if (jsonArray != null) {
+                if (jsonArray.size() > 0) {
+                    alias = jsonArray.get(0).getAsString();
+                    if (jsonArray.get(1).isJsonNull()) {
+                        uuid = "";
+                    } else {
+                        uuid = jsonArray.get(1).getAsString();
+                    }
+                }
+            }
+
             Seppuku.INSTANCE.getFriendManager().getFriendList().add(new Friend(name, uuid, alias));
         });
     }

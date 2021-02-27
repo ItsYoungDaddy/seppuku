@@ -116,7 +116,7 @@ public class Module {
         return msg;
     }
 
-    public Value find(String alias) {
+    public Value findValue(String alias) {
         for (Value v : this.getValueList()) {
             for (String s : v.getAlias()) {
                 if (alias.equalsIgnoreCase(s)) {
@@ -144,6 +144,10 @@ public class Module {
     }
 
     public void setDisplayName(String displayName) {
+        if (displayName.equals("true") || displayName.equals("false")) { // bug in earlier versions of seppuku <= 3.0.6
+            this.displayName = this.getAlias()[0];
+            return;
+        }
         this.displayName = displayName;
     }
 
@@ -156,6 +160,9 @@ public class Module {
     }
 
     public String getDesc() {
+        if (this.desc == null) {
+            return "No description to be found.";
+        }
         return desc;
     }
 

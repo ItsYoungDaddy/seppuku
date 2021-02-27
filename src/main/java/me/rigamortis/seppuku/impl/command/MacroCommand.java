@@ -3,6 +3,7 @@ package me.rigamortis.seppuku.impl.command;
 import me.rigamortis.seppuku.Seppuku;
 import me.rigamortis.seppuku.api.command.Command;
 import me.rigamortis.seppuku.api.macro.Macro;
+import me.rigamortis.seppuku.impl.config.MacroConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
@@ -15,10 +16,10 @@ import org.lwjgl.input.Keyboard;
  */
 public final class MacroCommand extends Command {
 
-    private String[] addAlias = new String[]{"Add", "A"};
-    private String[] removeAlias = new String[]{"Remove", "R", "Rem", "Delete", "Del"};
-    private String[] listAlias = new String[]{"List", "L"};
-    private String[] clearAlias = new String[]{"Clear", "C"};
+    private final String[] addAlias = new String[]{"Add", "A"};
+    private final String[] removeAlias = new String[]{"Remove", "R", "Rem", "Delete", "Del"};
+    private final String[] listAlias = new String[]{"List", "L"};
+    private final String[] clearAlias = new String[]{"Clear", "C"};
 
     public MacroCommand() {
         super("Macro", new String[]{"Mac"}, "Allows you to create chat macros", "Macro Add <Name> <Key> <Macro>\n" +
@@ -47,23 +48,23 @@ public final class MacroCommand extends Command {
 
             final Macro macro = Seppuku.INSTANCE.getMacroManager().find(name);
 
-            if(macro != null) {
+            if (macro != null) {
                 Seppuku.INSTANCE.logChat("\247c\"" + name + "\"\247f is already a macro");
-            }else{
-                if(Keyboard.getKeyIndex(key.toUpperCase()) != Keyboard.KEY_NONE) {
+            } else {
+                if (Keyboard.getKeyIndex(key.toUpperCase()) != Keyboard.KEY_NONE) {
                     final StringBuilder sb = new StringBuilder();
 
                     final int size = split.length;
 
                     for (int i = 4; i < size; i++) {
                         final String arg = split[i];
-                        sb.append(arg + ((i == size - 1) ? "" : " "));
+                        sb.append(arg).append((i == size - 1) ? "" : " ");
                     }
 
                     Seppuku.INSTANCE.logChat("Added macro \247c" + name + "\247f bound to " + key.toUpperCase());
                     Seppuku.INSTANCE.getMacroManager().getMacroList().add(new Macro(name, key.toUpperCase(), sb.toString()));
-                    Seppuku.INSTANCE.getConfigManager().saveAll();
-                }else{
+                    Seppuku.INSTANCE.getConfigManager().save(MacroConfig.class);
+                } else {
                     Seppuku.INSTANCE.logChat("\247c" + key + "\247f is not a valid key");
                 }
             }
@@ -77,11 +78,11 @@ public final class MacroCommand extends Command {
 
             final Macro macro = Seppuku.INSTANCE.getMacroManager().find(name);
 
-            if(macro != null) {
+            if (macro != null) {
                 Seppuku.INSTANCE.logChat("Removed macro \247c" + macro.getName() + " \247f");
                 Seppuku.INSTANCE.getMacroManager().getMacroList().remove(macro);
-                Seppuku.INSTANCE.getConfigManager().saveAll();
-            }else{
+                Seppuku.INSTANCE.getConfigManager().save(MacroConfig.class);
+            } else {
                 //TODO similar
                 Seppuku.INSTANCE.errorChat("Unknown macro " + "\247f\"" + name + "\"");
             }
@@ -93,7 +94,7 @@ public final class MacroCommand extends Command {
 
             final int size = Seppuku.INSTANCE.getMacroManager().getMacroList().size();
 
-            if(size > 0) {
+            if (size > 0) {
                 final TextComponentString msg = new TextComponentString("\2477Macros [" + size + "]\247f ");
 
                 for (int i = 0; i < size; i++) {
@@ -106,7 +107,7 @@ public final class MacroCommand extends Command {
                 }
 
                 Minecraft.getMinecraft().ingameGUI.getChatGUI().printChatMessage(msg);
-            }else{
+            } else {
                 Seppuku.INSTANCE.logChat("You don't have any macros");
             }
         } else if (equals(clearAlias, split[1])) {
@@ -117,11 +118,11 @@ public final class MacroCommand extends Command {
 
             final int macros = Seppuku.INSTANCE.getMacroManager().getMacroList().size();
 
-            if(macros > 0) {
+            if (macros > 0) {
                 Seppuku.INSTANCE.logChat("Removed \247c" + macros + "\247f macro" + (macros > 1 ? "s" : ""));
                 Seppuku.INSTANCE.getMacroManager().getMacroList().clear();
-                Seppuku.INSTANCE.getConfigManager().saveAll();
-            }else{
+                Seppuku.INSTANCE.getConfigManager().save(MacroConfig.class);
+            } else {
                 Seppuku.INSTANCE.logChat("You don't have any macros");
             }
         } else {

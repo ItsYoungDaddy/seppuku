@@ -17,6 +17,7 @@ public class DraggableHudComponent extends HudComponent {
 
     private boolean snappable;
     private boolean dragging;
+    private boolean locked;
     private float deltaX;
     private float deltaY;
 
@@ -24,22 +25,24 @@ public class DraggableHudComponent extends HudComponent {
 
     private DraggableHudComponent glued;
     private GlueSide glueSide;
+    private boolean parent;
 
     private static final double ANCHOR_THRESHOLD = 80;
+
+    protected final Minecraft mc = Minecraft.getMinecraft();
 
     public DraggableHudComponent(String name) {
         this.setName(name);
         this.setVisible(false);
         this.setSnappable(true);
+        this.setLocked(false);
         this.setX(Minecraft.getMinecraft().displayWidth / 2.0f);
         this.setY(Minecraft.getMinecraft().displayHeight / 2.0f);
     }
 
     @Override
     public void mouseClick(int mouseX, int mouseY, int button) {
-        final boolean inside = mouseX >= this.getX() && mouseX <= this.getX() + this.getW() && mouseY >= this.getY() && mouseY <= this.getY() + this.getH();
-
-        if (inside) {
+        if (this.isMouseInside(mouseX, mouseY)) {
             if (button == 0) {
                 this.setDragging(true);
                 this.setDeltaX(mouseX - this.getX());
@@ -56,19 +59,21 @@ public class DraggableHudComponent extends HudComponent {
     public void render(int mouseX, int mouseY, float partialTicks) {
         super.render(mouseX, mouseY, partialTicks);
 
+        boolean isHudEditor = Minecraft.getMinecraft().currentScreen instanceof GuiHudEditor;
+
         if (this.isDragging()) {
             this.setX(mouseX - this.getDeltaX());
             this.setY(mouseY - this.getDeltaY());
             this.clamp();
-        }
-
-        final boolean inside = mouseX >= this.getX() && mouseX <= this.getX() + this.getW() && mouseY >= this.getY() && mouseY <= this.getY() + this.getH();
-        if (inside) {
+        } else if (this.isMouseInside(mouseX, mouseY)) {
             RenderUtil.drawRect(this.getX(), this.getY(), this.getX() + this.getW(), this.getY() + this.getH(), 0x45FFFFFF);
         }
 
-        if (Minecraft.getMinecraft().currentScreen instanceof GuiHudEditor) {
+        if (isHudEditor) {
             RenderUtil.drawRect(this.getX(), this.getY(), this.getX() + this.getW(), this.getY() + this.getH(), 0x75101010);
+            if (this.isLocked()) {
+                RenderUtil.drawBorderedRect(this.getX() - 1, this.getY() - 1, this.getX() + this.getW() + 1, this.getY() + this.getH() + 1, 0.5f, 0x00000000, 0x75FFFFFF);
+            }
         }
 
         if (this.glued != null) {
@@ -86,7 +91,16 @@ public class DraggableHudComponent extends HudComponent {
             if (this.glueSide != null) {
                 switch (this.glueSide) {
                     case TOP:
-                        this.setY(this.glued.getY() - this.getH());
+                        // math... am i right?
+                        if (!isHudEditor && this.glued.getH() <= 0 && this.getH() <= 0) {
+                            this.setY((this.glued.getY() - this.getEmptyH()) + this.glued.getEmptyH());
+                        } else if (!isHudEditor && this.glued.getH() <= 0 && this.getH() > 0) {
+                            this.setY((this.glued.getY() + this.glued.getEmptyH()) - this.getH());
+                        } else if (!isHudEditor && this.glued.getH() > 0 && this.getH() <= 0) {
+                            this.setY(this.glued.getY() - this.getEmptyH());
+                        } else {
+                            this.setY(this.glued.getY() - this.getH());
+                        }
                         break;
                     case BOTTOM:
                         this.setY(this.glued.getY() + this.glued.getH());
@@ -111,7 +125,10 @@ public class DraggableHudComponent extends HudComponent {
                         this.setX(this.anchorPoint.getX() - this.getW());
                         break;
                     case TOP_CENTER:
-                        this.setX(this.anchorPoint.getX() - (this.getW() / 2));
+                        this.setX(this.anchorPoint.getX() - (this.getW() / 2.0f));
+                        break;
+                    case BOTTOM_CENTER:
+                        this.setX(this.anchorPoint.getX() - (this.getW() / 2.0f));
                         break;
                 }
                 if (this.glueSide != null) {
@@ -143,8 +160,12 @@ public class DraggableHudComponent extends HudComponent {
                         this.setY(this.anchorPoint.getY() - this.getH());
                         break;
                     case TOP_CENTER:
-                        this.setX(this.anchorPoint.getX() - (this.getW() / 2));
+                        this.setX(this.anchorPoint.getX() - (this.getW() / 2.0f));
                         this.setY(this.anchorPoint.getY());
+                        break;
+                    case BOTTOM_CENTER:
+                        this.setX(this.anchorPoint.getX() - (this.getW() / 2.0f));
+                        this.setY(this.anchorPoint.getY() - this.getH());
                         break;
                 }
             }
@@ -169,20 +190,33 @@ public class DraggableHudComponent extends HudComponent {
                 for (HudComponent component : Seppuku.INSTANCE.getHudManager().getComponentList()) {
                     if (component instanceof DraggableHudComponent) {
                         DraggableHudComponent draggable = (DraggableHudComponent) component;
-                        if (draggable != this && this.collidesWith(draggable) && draggable.isVisible() && draggable.isSnappable()) {
-                            if ((this.getY() + (this.getH() / 2)) < (draggable.getY() + (draggable.getH() / 2))) { // top
-                                this.setY(draggable.getY() - this.getH());
-                                this.glueSide = GlueSide.TOP;
-                                this.glued = draggable;
-                                if (draggable.getAnchorPoint() != null) {
-                                    this.anchorPoint = draggable.getAnchorPoint();
+                        if (draggable != this && draggable.isVisible() && draggable.isSnappable()) {
+                            if (this.collidesWith(draggable)) {
+                                if ((this.getY() + (this.getH() / 2.0f)) < (draggable.getY() + (draggable.getH() / 2.0f))) { // top
+                                    this.setY(draggable.getY() - this.getH());
+                                    this.glueSide = GlueSide.TOP;
+                                    this.glued = draggable;
+                                    draggable.setParent(true);
+                                    if (draggable.getAnchorPoint() != null) {
+                                        this.anchorPoint = draggable.getAnchorPoint();
+                                    }
+                                } else if ((this.getY() + (this.getH() / 2.0f)) > (draggable.getY() + (draggable.getH() / 2.0f))) { // bottom
+                                    this.setY(draggable.getY() + draggable.getH());
+                                    this.glueSide = GlueSide.BOTTOM;
+                                    this.glued = draggable;
+                                    draggable.setParent(true);
+                                    if (draggable.getAnchorPoint() != null) {
+                                        this.anchorPoint = draggable.getAnchorPoint();
+                                    }
                                 }
-                            } else if ((this.getY() + (this.getH() / 2)) > (draggable.getY() + (draggable.getH() / 2))) { // bottom
-                                this.setY(draggable.getY() + draggable.getH());
-                                this.glueSide = GlueSide.BOTTOM;
-                                this.glued = draggable;
-                                if (draggable.getAnchorPoint() != null) {
-                                    this.anchorPoint = draggable.getAnchorPoint();
+                            } else {
+                                AnchorPoint draggableClosest = draggable.getAnchorPoint();
+                                AnchorPoint myClosest = this.findClosest(mouseX, mouseY);
+                                if (draggableClosest != null && myClosest != null) {
+                                    boolean sameAnchor = draggableClosest.getPoint().equals(myClosest.getPoint());
+                                    if (sameAnchor) {
+                                        this.anchorPoint = null;
+                                    }
                                 }
                             }
                         }
@@ -191,10 +225,14 @@ public class DraggableHudComponent extends HudComponent {
             }
 
             this.setDragging(false);
+        } else if (button == 2) {
+            if (this.isMouseInside(mouseX, mouseY)) {
+                this.setLocked(!this.isLocked());
+            }
         }
     }
 
-    private AnchorPoint findClosest(int x, int y) {
+    public AnchorPoint findClosest(float x, float y) {
         AnchorPoint ret = null;
         double max = ANCHOR_THRESHOLD;
         for (AnchorPoint point : Seppuku.INSTANCE.getHudManager().getAnchorPoints()) {
@@ -207,10 +245,25 @@ public class DraggableHudComponent extends HudComponent {
                 ret = point;
             }
         }
+
         return ret;
     }
 
+    public AnchorPoint findClosest() {
+        return findClosest(this.getX(), this.getY());
+    }
+
     public void clamp() {
+        final ScaledResolution sr = new ScaledResolution(Minecraft.getMinecraft());
+
+        /* off screen clamp bypass check */
+        if (this.isLocked()/*this.isVisible() && this.getAnchorPoint() == null*/) {
+            return;
+            /*if (this.getX() > sr.getScaledWidth() || this.getY() > sr.getScaledHeight()) { // off the screen
+                return;
+            }*/
+        }
+
         if (this.getX() <= 0) {
             this.setX(2);
         }
@@ -219,14 +272,12 @@ public class DraggableHudComponent extends HudComponent {
             this.setY(2);
         }
 
-        final ScaledResolution res = new ScaledResolution(Minecraft.getMinecraft());
-
-        if (this.getX() + this.getW() >= res.getScaledWidth() - 2) {
-            this.setX(res.getScaledWidth() - 2 - this.getW());
+        if (this.getX() + this.getW() >= sr.getScaledWidth() - 2) {
+            this.setX(sr.getScaledWidth() - 2 - this.getW());
         }
 
-        if (this.getY() + this.getH() >= res.getScaledHeight() - 2) {
-            this.setY(res.getScaledHeight() - 2 - this.getH());
+        if (this.getY() + this.getH() >= sr.getScaledHeight() - 2) {
+            this.setY(sr.getScaledHeight() - 2 - this.getH());
         }
     }
 
@@ -244,6 +295,14 @@ public class DraggableHudComponent extends HudComponent {
 
     public void setDragging(boolean dragging) {
         this.dragging = dragging;
+    }
+
+    public boolean isLocked() {
+        return locked;
+    }
+
+    public void setLocked(boolean locked) {
+        this.locked = locked;
     }
 
     public float getDeltaX() {
@@ -288,5 +347,13 @@ public class DraggableHudComponent extends HudComponent {
 
     public enum GlueSide {
         TOP, BOTTOM
+    }
+
+    public boolean isParent() {
+        return parent;
+    }
+
+    public void setParent(boolean parent) {
+        this.parent = parent;
     }
 }

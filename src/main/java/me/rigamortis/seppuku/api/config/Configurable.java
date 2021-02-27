@@ -13,7 +13,7 @@ import java.io.FileReader;
  */
 public abstract class Configurable {
 
-    private File file;
+    private final File file;
 
     private JsonObject jsonObject;
 
@@ -34,8 +34,7 @@ public abstract class Configurable {
     }
 
     protected void saveJsonObjectToFile(JsonObject object) {
-        File newFile = FileUtil.recreateFile(this.getFile());
-        FileUtil.saveJsonFile(newFile, object);
+        FileUtil.saveJsonFile(FileUtil.recreateFile(this.getFile()), object);
     }
 
     protected JsonObject convertJsonObjectFromFile() {

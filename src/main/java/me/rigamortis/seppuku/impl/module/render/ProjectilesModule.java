@@ -10,7 +10,6 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.renderer.BufferBuilder;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.Entity;
@@ -22,6 +21,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL32;
 import team.stiff.pomelo.impl.annotated.handler.annotation.Listener;
 
+import java.awt.*;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -45,11 +45,9 @@ public final class ProjectilesModule extends Module {
 
     private final Queue<Vec3d> flightPoint = new ConcurrentLinkedQueue<>();
 
-    public final Value<Float> width = new Value<Float>("Width", new String[]{"W", "Width"}, "Pixel width of the projectile path.", 1.0f, 0.0f, 5.0f, 0.1f);
-    public final Value<Float> red = new Value<Float>("Red", new String[]{"R"}, "Red value for the projectile path.", 255.0f, 0.0f, 255.0f, 1.0f);
-    public final Value<Float> green = new Value<Float>("Green", new String[]{"G"}, "Green value for the projectile path.", 255.0f, 0.0f, 255.0f, 1.0f);
-    public final Value<Float> blue = new Value<Float>("Blue", new String[]{"B"}, "Blue value for the projectile path.", 255.0f, 0.0f, 255.0f, 1.0f);
-    public final Value<Float> alpha = new Value<Float>("Alpha", new String[]{"A"}, "Alpha value for the projectile path.", 255.0f, 0.0f, 255.0f, 1.0f);
+    public final Value<Float> width = new Value<Float>("Width", new String[]{"W", "Width"}, "Pixel width of the projectile path.", 1.0f, 0.1f, 5.0f, 0.1f);
+    public final Value<Color> color = new Value<Color>("PathColor", new String[]{"color", "c", "pc"}, "Change the color of the predicted path.", new Color(255, 255, 255));
+    public final Value<Integer> alpha = new Value<Integer>("PathAlpha", new String[]{"opacity", "a", "o", "pa", "po"}, "Alpha value for the predicted path.", 255, 1, 255, 1);
 
     public ProjectilesModule() {
         super("Projectiles", new String[]{"Proj"}, "Projects the possible path of an entity that was fired.", "NONE", -1, ModuleType.RENDER);
@@ -78,41 +76,29 @@ public final class ProjectilesModule extends Module {
         final boolean bobbing = mc.gameSettings.viewBobbing;
         mc.gameSettings.viewBobbing = false;
         mc.entityRenderer.setupCameraTransform(event.getPartialTicks(), 0);
-        GlStateManager.pushMatrix();
-        GlStateManager.disableTexture2D();
-        GlStateManager.enableBlend();
-        GlStateManager.disableAlpha();
-        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-        GlStateManager.shadeModel(GL_SMOOTH);
-        glLineWidth(width.getValue());
-        glEnable(GL_LINE_SMOOTH);
-        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-        GlStateManager.disableDepth();
-        glEnable(GL32.GL_DEPTH_CLAMP);
+
         final Tessellator tessellator = Tessellator.getInstance();
         final BufferBuilder bufferbuilder = tessellator.getBuffer();
 
+        RenderUtil.begin3D();
+        glLineWidth(width.getValue());
+        glEnable(GL32.GL_DEPTH_CLAMP);
         while (!flightPoint.isEmpty()) {
             bufferbuilder.begin(GL11.GL_LINE_STRIP, DefaultVertexFormats.POSITION_COLOR);
             Vec3d head = flightPoint.poll();
-            bufferbuilder.pos(head.x, head.y, head.z).color(red.getValue() / 255.0f, green.getValue() / 255.0f, blue.getValue() / 255.0f, alpha.getValue() / 255.0f).endVertex();
+            if (head == null)
+                continue;
+
+            bufferbuilder.pos(head.x, head.y, head.z).color(this.color.getValue().getRed() / 255.0f, this.color.getValue().getGreen() / 255.0f, this.color.getValue().getBlue() / 255.0f, this.alpha.getValue() / 255.0f).endVertex();
 
             if (flightPoint.peek() != null) {
                 Vec3d point = flightPoint.peek();
-                bufferbuilder.pos(point.x, point.y, point.z).color(red.getValue() / 255.0f, green.getValue() / 255.0f, blue.getValue() / 255.0f, alpha.getValue() / 255.0f).endVertex();
+                bufferbuilder.pos(point.x, point.y, point.z).color(this.color.getValue().getRed() / 255.0f, this.color.getValue().getGreen() / 255.0f, this.color.getValue().getBlue() / 255.0f, this.alpha.getValue() / 255.0f).endVertex();
             }
 
             tessellator.draw();
         }
-
-        GlStateManager.shadeModel(GL_FLAT);
-        glDisable(GL_LINE_SMOOTH);
-        GlStateManager.enableDepth();
         glDisable(GL32.GL_DEPTH_CLAMP);
-        GlStateManager.disableBlend();
-        GlStateManager.enableAlpha();
-        GlStateManager.enableTexture2D();
-        GlStateManager.popMatrix();
 
         mc.gameSettings.viewBobbing = bobbing;
         mc.entityRenderer.setupCameraTransform(event.getPartialTicks(), 0);
@@ -131,20 +117,19 @@ public final class ProjectilesModule extends Module {
                 }
             } else if (hit.typeOfHit == RayTraceResult.Type.ENTITY && hit.entityHit != null) {
                 final AxisAlignedBB entityBB = hit.entityHit.getEntityBoundingBox();
-                if (entityBB != null) {
-                    bb = new AxisAlignedBB(entityBB.minX - mc.getRenderManager().viewerPosX, entityBB.minY - mc.getRenderManager().viewerPosY, entityBB.minZ - mc.getRenderManager().viewerPosZ, entityBB.maxX - mc.getRenderManager().viewerPosX, entityBB.maxY - mc.getRenderManager().viewerPosY, entityBB.maxZ - mc.getRenderManager().viewerPosZ);
-                }
+                bb = new AxisAlignedBB(entityBB.minX - mc.getRenderManager().viewerPosX, entityBB.minY - mc.getRenderManager().viewerPosY, entityBB.minZ - mc.getRenderManager().viewerPosZ, entityBB.maxX - mc.getRenderManager().viewerPosX, entityBB.maxY - mc.getRenderManager().viewerPosY, entityBB.maxZ - mc.getRenderManager().viewerPosZ);
             }
 
             if (bb != null) {
-                RenderUtil.drawBoundingBox(bb, width.getValue(), red.getValue() / 255.0f, green.getValue() / 255.0f, blue.getValue() / 255.0f, alpha.getValue() / 255.0f);
+                RenderUtil.drawBoundingBox(bb, width.getValue(), this.color.getValue().getRed() / 255.0f, this.color.getValue().getGreen() / 255.0f, this.color.getValue().getBlue() / 255.0f, this.alpha.getValue() / 255.0f);
             }
         }
+        RenderUtil.end3D();
     }
 
     private ThrowableType getTypeFromCurrentItem(EntityPlayerSP player) {
         // Check if we're holding an item first
-        if (player.getHeldItemMainhand() == null) {
+        if (player.getHeldItemMainhand().isEmpty()) {
             return ThrowableType.NONE;
         }
 
@@ -238,8 +223,8 @@ public final class ProjectilesModule extends Module {
      * implementation resides in multiple classes but the parent of all
      * of them is {@link net.minecraft.entity.projectile.EntityThrowable}
      */
-    final class FlightPath {
-        private EntityPlayerSP shooter;
+    private final class FlightPath {
+        private final EntityPlayerSP shooter;
         private Vec3d position;
         private Vec3d motion;
         private float yaw;
@@ -247,7 +232,7 @@ public final class ProjectilesModule extends Module {
         private AxisAlignedBB boundingBox;
         private boolean collided;
         private RayTraceResult target;
-        private ThrowableType throwableType;
+        private final ThrowableType throwableType;
 
         FlightPath(EntityPlayerSP player, ThrowableType throwableType) {
             this.shooter = player;

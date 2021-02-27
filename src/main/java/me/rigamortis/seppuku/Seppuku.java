@@ -4,6 +4,7 @@ import me.rigamortis.seppuku.api.event.client.EventLoad;
 import me.rigamortis.seppuku.api.event.client.EventReload;
 import me.rigamortis.seppuku.api.event.client.EventUnload;
 import me.rigamortis.seppuku.api.logging.SeppukuFormatter;
+import me.rigamortis.seppuku.impl.gui.hud.GuiHudEditor;
 import me.rigamortis.seppuku.impl.gui.menu.GuiSeppukuMainMenu;
 import me.rigamortis.seppuku.impl.management.*;
 import net.minecraft.client.Minecraft;
@@ -11,7 +12,6 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.ModContainer;
-import org.lwjgl.opengl.Display;
 import team.stiff.pomelo.EventManager;
 import team.stiff.pomelo.impl.annotated.AnnotatedEventManager;
 
@@ -19,8 +19,9 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Logger;
 
 /**
- * Author Seth
- * 4/4/2019 @ 10:21 PM.
+ * @author Seth (riga)
+ * @author noil
+ * @author github contributors
  */
 public final class Seppuku {
 
@@ -28,7 +29,7 @@ public final class Seppuku {
 
     private Logger logger;
 
-    private String prevTitle;
+    //private String prevTitle;
 
     private EventManager eventManager;
 
@@ -68,16 +69,19 @@ public final class Seppuku {
 
     private NotificationManager notificationManager;
 
+    private GuiHudEditor hudEditor;
+
     private GuiSeppukuMainMenu seppukuMainMenu;
 
     private CameraManager cameraManager;
+
+    private AltManager altManager;
 
     /**
      * The initialization point of the client
      * this is called post launch
      */
     public void init() {
-        this.initLogger();
         this.eventManager = new AnnotatedEventManager();
         this.apiManager = new APIManager();
         this.configManager = new ConfigManager();
@@ -97,13 +101,15 @@ public final class Seppuku {
         this.moduleManager = new ModuleManager();
         this.commandManager = new CommandManager();
         this.cameraManager = new CameraManager();
+        this.altManager = new AltManager();
         this.hudManager = new HudManager();
-        //this.seppukuMainMenu = new GuiSeppukuMainMenu();
+        this.hudEditor = new GuiHudEditor();
+        this.seppukuMainMenu = new GuiSeppukuMainMenu();
 
         this.configManager.init(); // Keep last, so we load configs after everything else inits
 
-        this.prevTitle = Display.getTitle();
-        Display.setTitle("Seppuku 1.12.2");
+        //this.prevTitle = Display.getTitle();
+        //Display.setTitle("Seppuku 1.12.2");
 
         this.getEventManager().dispatchEvent(new EventLoad());
 
@@ -114,8 +120,6 @@ public final class Seppuku {
                 getConfigManager().saveAll();
             }
         });
-
-        this.logger.info("Seppuku Loaded Successfully");
     }
 
     public void errorChat(String message) {
@@ -153,8 +157,10 @@ public final class Seppuku {
         this.hudManager.unload();
         this.animationManager.unload();
         this.notificationManager.unload();
+        this.hudEditor.unload();
         this.seppukuMainMenu.unload();
         this.cameraManager.unload();
+        this.altManager.unload();
 
         this.getEventManager().dispatchEvent(new EventUnload());
 
@@ -170,7 +176,7 @@ public final class Seppuku {
             Loader.instance().getActiveModList().remove(seppukuModContainer);
         }
 
-        Display.setTitle(this.prevTitle);
+        //Display.setTitle(this.prevTitle);
         Minecraft.getMinecraft().ingameGUI.getChatGUI().clearChatMessages(true);
         System.gc();
     }
@@ -202,6 +208,14 @@ public final class Seppuku {
         final ConsoleHandler handler = new ConsoleHandler();
         handler.setFormatter(new SeppukuFormatter());
         logger.addHandler(handler);
+    }
+
+    public Logger getLogger() {
+        if (this.logger == null) {
+            this.initLogger();
+        }
+
+        return this.logger;
     }
 
     public EventManager getEventManager() {
@@ -338,6 +352,13 @@ public final class Seppuku {
         return this.notificationManager;
     }
 
+    public GuiHudEditor getHudEditor() {
+        if (this.hudEditor == null) {
+            this.hudEditor = new GuiHudEditor();
+        }
+        return this.hudEditor;
+    }
+
     public GuiSeppukuMainMenu getSeppukuMainMenu() {
         if (this.seppukuMainMenu == null) {
             this.seppukuMainMenu = new GuiSeppukuMainMenu();
@@ -352,4 +373,10 @@ public final class Seppuku {
         return this.cameraManager;
     }
 
+    public AltManager getAltManager() {
+        if (this.altManager == null) {
+            this.altManager = new AltManager();
+        }
+        return this.altManager;
+    }
 }

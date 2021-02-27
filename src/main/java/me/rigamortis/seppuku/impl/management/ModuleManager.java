@@ -2,30 +2,25 @@ package me.rigamortis.seppuku.impl.management;
 
 import me.rigamortis.seppuku.Seppuku;
 import me.rigamortis.seppuku.api.event.module.EventModuleLoad;
-import me.rigamortis.seppuku.api.event.module.EventModulePostLoaded;
 import me.rigamortis.seppuku.api.module.Module;
 import me.rigamortis.seppuku.api.util.ReflectionUtil;
 import me.rigamortis.seppuku.api.util.StringUtil;
 import me.rigamortis.seppuku.api.value.Value;
-import me.rigamortis.seppuku.impl.command.CalcStrongholdCommand;
 import me.rigamortis.seppuku.impl.module.combat.*;
-import me.rigamortis.seppuku.impl.module.hidden.CommandsModule;
-import me.rigamortis.seppuku.impl.module.hidden.IgnoreModule;
-import me.rigamortis.seppuku.impl.module.hidden.KeybindsModule;
-import me.rigamortis.seppuku.impl.module.hidden.MacroModule;
+import me.rigamortis.seppuku.impl.module.hidden.*;
 import me.rigamortis.seppuku.impl.module.misc.*;
 import me.rigamortis.seppuku.impl.module.movement.*;
 import me.rigamortis.seppuku.impl.module.player.*;
 import me.rigamortis.seppuku.impl.module.render.*;
-import me.rigamortis.seppuku.impl.module.ui.HudEditorModule;	
+import me.rigamortis.seppuku.impl.module.ui.HudEditorModule;
 import me.rigamortis.seppuku.impl.module.world.*;
 
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.logging.Level;
 
 /**
  * Author Seth
@@ -39,6 +34,7 @@ public final class ModuleManager {
         add(new KeybindsModule());
         add(new CommandsModule());
         add(new HudModule());
+        add(new ArrayListModule());
         add(new NoOverlayModule());
         add(new NoPushModule());
         add(new GodModeModule());
@@ -149,17 +145,38 @@ public final class ModuleManager {
         add(new VisualRangeModule());
         add(new HotBarRefillModule());
         add(new QuickCraftModule());
+        add(new TotemNotifierModule());
+        add(new MiddleClickPearlModule());
+        add(new NameAlertModule());
+        add(new CrosshairModule());
+        add(new AutoMountModule());
+        add(new EntityDesyncModule());
+        add(new NoPacketModule());
+        add(new BridgeModule());
+        add(new AutoFarmModule());
+        add(new NoEffectsModule());
+        add(new NoEntityTraceModule());
+        add(new MultitaskModule());
+        add(new InfEnderChestModule());
+        add(new SearchModule());
+        add(new AutoGappleModule());
+        add(new AutoEatModule());
+        add(new NoFriendHurtModule());
+        add(new DonkeyAlertModule());
+        add(new ReachModule());
+        add(new AutoWitherModule());
+        add(new NoteBotModule());
+        add(new BurrowModule());
+        add(new AutoTorchModule());
+        add(new AutoClickerModule());
 
-        //p2w experience
+        // p2w experience
         if (Seppuku.INSTANCE.getCapeManager().hasCape())
             add(new CapeModule());
 
         this.loadExternalModules();
 
-        for (final Module module : moduleList)
-            Seppuku.INSTANCE.getEventManager().dispatchEvent(new EventModulePostLoaded(module));
-
-        Collections.sort(moduleList, Comparator.comparing(Module::getDisplayName));
+        moduleList.sort(Comparator.comparing(Module::getDisplayName));
     }
 
     /**
@@ -186,13 +203,11 @@ public final class ModuleManager {
                         //create a new instance of the class
                         final Module module = (Module) clazz.newInstance();
 
-                        if (module != null) {
-                            //add the class to our list of modules
-                            add(module);
+                        //add the class to our list of modules
+                        add(module);
 
-                            Seppuku.INSTANCE.getEventManager().dispatchEvent(new EventModuleLoad(module));
-                            System.out.println("[Seppuku] Found external module " + module.getDisplayName());
-                        }
+                        Seppuku.INSTANCE.getEventManager().dispatchEvent(new EventModuleLoad(module));
+                        Seppuku.INSTANCE.getLogger().log(Level.INFO, "Found external module " + module.getDisplayName());
                     }
                 }
             }

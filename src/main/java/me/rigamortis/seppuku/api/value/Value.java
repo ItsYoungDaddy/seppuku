@@ -70,11 +70,19 @@ public class Value<T> {
     }
 
     public void setEnumValue(String value) {
-        for (Enum e : ((Enum) this.value).getClass().getEnumConstants()) {
+        for (Enum<?> e : ((Enum<?>) this.value).getClass().getEnumConstants()) {
             if (e.name().equalsIgnoreCase(value)) {
                 this.value = (T) e;
             }
         }
+    }
+
+    public String getCapitalizedName() {
+        return Character.toString(this.getName().charAt(0)) + this.getName().toLowerCase().replaceFirst(Character.toString(this.getName().charAt(0)).toLowerCase(), "");
+    }
+
+    public String getCapitalizedValue() {
+        return this.getValue().toString().charAt(0) + this.getValue().toString().toLowerCase().replaceFirst(Character.toString(this.getValue().toString().charAt(0)).toLowerCase(), "");
     }
 
     public T getMin() {
@@ -118,6 +126,9 @@ public class Value<T> {
     }
 
     public String getDesc() {
+        if (this.desc == null) {
+            return "No description to be found.";
+        }
         return desc;
     }
 

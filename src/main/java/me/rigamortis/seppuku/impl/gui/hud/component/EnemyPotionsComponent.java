@@ -23,8 +23,6 @@ public final class EnemyPotionsComponent extends DraggableHudComponent {
     public void render(int mouseX, int mouseY, float partialTicks) {
         super.render(mouseX, mouseY, partialTicks);
 
-        final Minecraft mc = Minecraft.getMinecraft();
-
         int effectCount = 0;
         float xOffset = 0;
         float yOffset = 0;
@@ -33,7 +31,7 @@ public final class EnemyPotionsComponent extends DraggableHudComponent {
         if (mc.player != null && mc.world != null) {
             for (EntityPlayer player : mc.world.playerEntities) {
 
-                // Check for self & friendds
+                // Check for self & friends
                 if ((player == mc.player) || (Seppuku.INSTANCE.getFriendManager().isFriend(player) != null))
                     continue;
 
@@ -54,6 +52,7 @@ public final class EnemyPotionsComponent extends DraggableHudComponent {
                         if (this.getAnchorPoint() != null) {
                             switch (this.getAnchorPoint().getPoint()) {
                                 case TOP_CENTER:
+                                case BOTTOM_CENTER:
                                     xOffset = (this.getW() - width) / 2;
                                     break;
                                 case TOP_LEFT:
@@ -75,6 +74,7 @@ public final class EnemyPotionsComponent extends DraggableHudComponent {
                                     mc.fontRenderer.drawStringWithShadow(displayLine, this.getX() + xOffset, this.getY() + yOffset, effect.getPotion().getLiquidColor());
                                     yOffset += (mc.fontRenderer.FONT_HEIGHT + 1);
                                     break;
+                                case BOTTOM_CENTER:
                                 case BOTTOM_LEFT:
                                 case BOTTOM_RIGHT:
                                     mc.fontRenderer.drawStringWithShadow(displayLine, this.getX() + xOffset, this.getY() + (this.getH() - mc.fontRenderer.FONT_HEIGHT) + yOffset, effect.getPotion().getLiquidColor());
@@ -92,13 +92,16 @@ public final class EnemyPotionsComponent extends DraggableHudComponent {
             }
         }
 
-        if (Minecraft.getMinecraft().currentScreen instanceof GuiHudEditor) {
-            if (effectCount == 0) {
-                final String placeholder = "Enemy Potions";
-                this.setW(mc.fontRenderer.getStringWidth(placeholder));
-                this.setH(mc.fontRenderer.FONT_HEIGHT);
-                mc.fontRenderer.drawStringWithShadow(placeholder, this.getX(), this.getY(), 0xFFFFFFFF);
-                return;
+        if (effectCount == 0) {
+            if (Minecraft.getMinecraft().currentScreen instanceof GuiHudEditor) {
+                final String placeholder = "(enemy potion effects)";
+                maxWidth = mc.fontRenderer.getStringWidth(placeholder);
+                yOffset = mc.fontRenderer.FONT_HEIGHT;
+                mc.fontRenderer.drawStringWithShadow(placeholder, this.getX(), this.getY(), 0xFFAAAAAA);
+            } else {
+                maxWidth = 0;
+                yOffset = 0;
+                this.setEmptyH(mc.fontRenderer.FONT_HEIGHT);
             }
         }
 

@@ -15,14 +15,14 @@ public final class WatermarkComponent extends DraggableHudComponent {
 
     public WatermarkComponent() {
         super("Watermark");
-        this.setW(Minecraft.getMinecraft().fontRenderer.getStringWidth(WATERMARK));
         this.setH(Minecraft.getMinecraft().fontRenderer.FONT_HEIGHT);
     }
 
     @Override
     public void render(int mouseX, int mouseY, float partialTicks) {
         super.render(mouseX, mouseY, partialTicks);
-        //RenderUtil.drawRect(this.getX(), this.getY(), this.getX() + this.getW(), this.getY() + this.getH(), 0x90222222);
+
+        this.setW(Minecraft.getMinecraft().fontRenderer.getStringWidth(WATERMARK));
         Minecraft.getMinecraft().fontRenderer.drawStringWithShadow(WATERMARK, this.getX(), this.getY(), -1);
     }
 

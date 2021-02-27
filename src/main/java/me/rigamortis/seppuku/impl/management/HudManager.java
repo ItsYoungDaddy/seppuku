@@ -5,22 +5,22 @@ import me.rigamortis.seppuku.api.event.render.EventRender2D;
 import me.rigamortis.seppuku.api.gui.hud.component.HudComponent;
 import me.rigamortis.seppuku.api.module.Module;
 import me.rigamortis.seppuku.api.util.ReflectionUtil;
+import me.rigamortis.seppuku.api.value.Value;
 import me.rigamortis.seppuku.impl.gui.hud.GuiHudEditor;
 import me.rigamortis.seppuku.impl.gui.hud.anchor.AnchorPoint;
 import me.rigamortis.seppuku.impl.gui.hud.component.*;
 import me.rigamortis.seppuku.impl.gui.hud.component.module.ModuleListComponent;
-import me.rigamortis.seppuku.impl.module.render.HudModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
-import net.minecraft.client.gui.GuiIngame;
 import net.minecraft.client.gui.ScaledResolution;
 import team.stiff.pomelo.impl.annotated.handler.annotation.Listener;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 /**
@@ -35,56 +35,84 @@ public final class HudManager {
     private final FirstLaunchComponent firstLaunchComponent;
 
     public HudManager() {
-        final ScaledResolution res = new ScaledResolution(Minecraft.getMinecraft());
+        final ScaledResolution sr = new ScaledResolution(Minecraft.getMinecraft());
 
-        final AnchorPoint TOP_LEFT = new AnchorPoint(2, 2, AnchorPoint.Point.TOP_LEFT);
-        final AnchorPoint TOP_RIGHT = new AnchorPoint(res.getScaledWidth() - 2, 2, AnchorPoint.Point.TOP_RIGHT);
-        final AnchorPoint BOTTOM_LEFT = new AnchorPoint(2, res.getScaledHeight() - 2, AnchorPoint.Point.BOTTOM_LEFT);
-        final AnchorPoint BOTTOM_RIGHT = new AnchorPoint(res.getScaledWidth() - 2, res.getScaledHeight() - 2, AnchorPoint.Point.BOTTOM_RIGHT);
-        final AnchorPoint TOP_CENTER = new AnchorPoint(res.getScaledWidth() / 2, 2, AnchorPoint.Point.TOP_CENTER);
+        final AnchorPoint TOP_LEFT = new AnchorPoint(AnchorPoint.Point.TOP_LEFT);
+        final AnchorPoint TOP_RIGHT = new AnchorPoint(AnchorPoint.Point.TOP_RIGHT);
+        final AnchorPoint BOTTOM_LEFT = new AnchorPoint(AnchorPoint.Point.BOTTOM_LEFT);
+        final AnchorPoint BOTTOM_RIGHT = new AnchorPoint(AnchorPoint.Point.BOTTOM_RIGHT);
+        final AnchorPoint TOP_CENTER = new AnchorPoint(AnchorPoint.Point.TOP_CENTER);
+        final AnchorPoint BOTTOM_CENTER = new AnchorPoint(AnchorPoint.Point.BOTTOM_CENTER);
         this.anchorPoints.add(TOP_LEFT);
         this.anchorPoints.add(TOP_RIGHT);
         this.anchorPoints.add(BOTTOM_LEFT);
         this.anchorPoints.add(BOTTOM_RIGHT);
         this.anchorPoints.add(TOP_CENTER);
+        this.anchorPoints.add(BOTTOM_CENTER);
 
-        this.componentList.add(new WatermarkComponent());
-        this.componentList.add(new ArrayListComponent());
-        this.componentList.add(new TpsComponent());
-        this.componentList.add(new PotionEffectsComponent());
-        this.componentList.add(new FpsComponent());
-        this.componentList.add(new CoordsComponent());
-        this.componentList.add(new NetherCoordsComponent());
-        this.componentList.add(new SpeedComponent());
-        this.componentList.add(new ArmorComponent());
-        this.componentList.add(new PingComponent());
-        this.componentList.add(new ServerBrandComponent());
-        this.componentList.add(new BiomeComponent());
-        this.componentList.add(new DirectionComponent());
-        this.componentList.add(new PacketTimeComponent());
-        this.componentList.add(new TimeComponent());
-        this.componentList.add(new EnemyPotionsComponent());
-        this.componentList.add(new CompassComponent());
-        this.componentList.add(new HubComponent());
-        this.componentList.add(new InventoryComponent());
-        this.componentList.add(new TotemCountComponent());
-        this.componentList.add(new TutorialComponent());
-        this.componentList.add(new HoleOverlayComponent());
-        this.componentList.add(new PlayerCountComponent());
-        this.componentList.add(new OverViewComponent());
-        this.componentList.add(new RearViewComponent());
+        for (AnchorPoint anchorPoint : this.anchorPoints)
+            anchorPoint.updatePosition(sr);
 
+        int moduleListXOffset = 0;
+        int moduleListYOffset = 0;
         for (Module.ModuleType type : Module.ModuleType.values()) {
             if (type.equals(Module.ModuleType.HIDDEN) || type.equals(Module.ModuleType.UI))
                 continue;
 
             final ModuleListComponent moduleList = new ModuleListComponent(type);
-            this.componentList.add(moduleList);
+            if ((moduleList.getX() + moduleListXOffset) > sr.getScaledWidth()) {
+                moduleListXOffset = 0;
+                moduleListYOffset += moduleList.getH() + 4 /* gap above and below each column */;
+            }
+
+            moduleList.setX(moduleList.getX() + moduleListXOffset);
+            if (moduleListYOffset != 0) {
+                moduleList.setY(moduleList.getY() + moduleListYOffset);
+            }
+
+            add(moduleList);
+
+            moduleListXOffset += moduleList.getW() + 4 /* gap between each list */;
         }
 
+        add(new ParticlesComponent());
+        add(new WatermarkComponent());
+        add(new EnabledModsComponent(TOP_RIGHT)); // creates the enabled mods component & by default anchors in the top right (to aid new users)
+        add(new TpsComponent());
+        add(new PotionEffectsComponent());
+        add(new FpsComponent());
+        add(new CoordsComponent());
+        add(new NetherCoordsComponent());
+        add(new SpeedComponent());
+        add(new ArmorComponent());
+        add(new PingComponent());
+        add(new ServerBrandComponent());
+        add(new BiomeComponent());
+        add(new DirectionComponent());
+        add(new PacketTimeComponent());
+        add(new TimeComponent());
+        add(new EnemyPotionsComponent());
+        add(new CompassComponent());
+        add(new HubComponent());
+        add(new InventoryComponent());
+        add(new TotemCountComponent());
+        add(new TutorialComponent());
+        add(new HoleOverlayComponent());
+        add(new PlayerCountComponent());
+        add(new OverViewComponent());
+        add(new RearViewComponent());
+        add(new EntityListComponent());
+        add(new TpsGraphComponent());
+        add(new MovementGraphComponent());
+        add(new ColorsComponent());
+
+        TrayComponent trayComponent = new TrayComponent();
+        trayComponent.setAnchorPoint(BOTTOM_CENTER);
+        add(trayComponent);
+
         NotificationsComponent notificationsComponent = new NotificationsComponent();
-        notificationsComponent.setAnchorPoint(TOP_RIGHT);
-        this.componentList.add(notificationsComponent);
+        notificationsComponent.setAnchorPoint(TOP_CENTER);
+        add(notificationsComponent);
 
         this.loadExternalHudComponents();
 
@@ -95,6 +123,29 @@ public final class HudManager {
         this.firstLaunchComponent = new FirstLaunchComponent();
 
         Seppuku.INSTANCE.getEventManager().addEventListener(this);
+    }
+
+    /**
+     * Find all fields within the hud component that are values
+     * and add them to the list of values inside of the hud component
+     *
+     * @param component the HudComponent to add
+     */
+    public void add(HudComponent component) {
+        try {
+            for (Field field : component.getClass().getDeclaredFields()) {
+                if (Value.class.isAssignableFrom(field.getType())) {
+                    if (!field.isAccessible()) {
+                        field.setAccessible(true);
+                    }
+                    final Value val = (Value) field.get(component);
+                    component.getValueList().add(val);
+                }
+            }
+            this.componentList.add(component);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -136,8 +187,12 @@ public final class HudManager {
                 point.setY(event.getScaledResolution().getScaledHeight() - chatHeight - 2);
             }
             if (point.getPoint() == AnchorPoint.Point.TOP_CENTER) {
-                point.setX(event.getScaledResolution().getScaledWidth() / 2);
+                point.setX(event.getScaledResolution().getScaledWidth() / 2.0f);
                 point.setY(2);
+            }
+            if (point.getPoint() == AnchorPoint.Point.BOTTOM_CENTER) {
+                point.setX(event.getScaledResolution().getScaledWidth() / 2.0f);
+                point.setY(event.getScaledResolution().getScaledHeight() - 2);
             }
         }
     }
@@ -154,11 +209,8 @@ public final class HudManager {
                 if (clazz != null) {
                     if (HudComponent.class.isAssignableFrom(clazz)) {
                         final HudComponent component = (HudComponent) clazz.newInstance();
-
-                        if (component != null) {
-                            this.componentList.add(component);
-                            System.out.println("[Seppuku] Found external hud component " + component.getName());
-                        }
+                        this.componentList.add(component);
+                        Seppuku.INSTANCE.getLogger().log(Level.INFO, "Found external hud component " + component.getName());
                     }
                 }
             }
@@ -168,10 +220,7 @@ public final class HudManager {
     }
 
     public void moveToTop(HudComponent component) {
-        final Iterator it = this.componentList.iterator();
-
-        while (it.hasNext()) {
-            final HudComponent comp = (HudComponent) it.next();
+        for (HudComponent comp : this.componentList) {
             if (comp != null && comp == component) {
                 this.componentList.remove(comp);
                 this.componentList.add(comp);

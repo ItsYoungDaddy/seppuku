@@ -6,6 +6,7 @@ import me.rigamortis.seppuku.api.event.world.EventAddEntity;
 import me.rigamortis.seppuku.api.event.world.EventRemoveEntity;
 import me.rigamortis.seppuku.api.friend.Friend;
 import me.rigamortis.seppuku.api.module.Module;
+import me.rigamortis.seppuku.api.value.Value;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import team.stiff.pomelo.impl.annotated.handler.annotation.Listener;
@@ -16,6 +17,12 @@ import team.stiff.pomelo.impl.annotated.handler.annotation.Listener;
  */
 public final class VisualRangeModule extends Module {
 
+    public final Value<Mode> mode = new Value<Mode>("Mode", new String[]{"Mode", "M"}, "Change between alert modes.", Mode.NOTIFICATION);
+
+    private enum Mode {
+        CHAT, NOTIFICATION, BOTH
+    }
+
     private int prevPlayer = -1;
 
     public VisualRangeModule() {
@@ -24,11 +31,21 @@ public final class VisualRangeModule extends Module {
 
     @Listener
     public void onEntityAdded(EventAddEntity event) {
-        if (Minecraft.getMinecraft().world != null && !Minecraft.getMinecraft().player.isDead && event.getEntity() instanceof EntityPlayer && !event.getEntity().getName().equalsIgnoreCase(Minecraft.getMinecraft().player.getName())) {
+        if (Minecraft.getMinecraft().world == null || Minecraft.getMinecraft().player == null)
+            return;
+
+        if (!Minecraft.getMinecraft().player.isDead && event.getEntity() instanceof EntityPlayer && !event.getEntity().getName().equalsIgnoreCase(Minecraft.getMinecraft().player.getName())) {
             final Friend friend = Seppuku.INSTANCE.getFriendManager().isFriend(event.getEntity());
             final String msg = (friend != null ? ChatFormatting.DARK_PURPLE : ChatFormatting.RED) + (friend != null ? friend.getAlias() : event.getEntity().getName()) + ChatFormatting.WHITE + " has entered your visual range.";
-            Seppuku.INSTANCE.getNotificationManager().addNotification("", msg);
-            Seppuku.INSTANCE.logChat(msg);
+
+            if (this.mode.getValue() == Mode.NOTIFICATION || this.mode.getValue() == Mode.BOTH) {
+                Seppuku.INSTANCE.getNotificationManager().addNotification("", msg);
+            }
+
+            if (this.mode.getValue() == Mode.CHAT || this.mode.getValue() == Mode.BOTH) {
+                Seppuku.INSTANCE.logChat(msg);
+            }
+
             if (event.getEntity().getEntityId() == this.prevPlayer) {
                 this.prevPlayer = -1;
             }
@@ -37,13 +54,22 @@ public final class VisualRangeModule extends Module {
 
     @Listener
     public void onEntityRemove(EventRemoveEntity event) {
-        if (Minecraft.getMinecraft().world != null && !Minecraft.getMinecraft().player.isDead && event.getEntity() instanceof EntityPlayer && !event.getEntity().getName().equalsIgnoreCase(Minecraft.getMinecraft().player.getName())) {
+        if (Minecraft.getMinecraft().world == null || Minecraft.getMinecraft().player == null)
+            return;
+
+        if (!Minecraft.getMinecraft().player.isDead && event.getEntity() instanceof EntityPlayer && !event.getEntity().getName().equalsIgnoreCase(Minecraft.getMinecraft().player.getName())) {
             if (this.prevPlayer != event.getEntity().getEntityId()) {
                 this.prevPlayer = event.getEntity().getEntityId();
                 final Friend friend = Seppuku.INSTANCE.getFriendManager().isFriend(event.getEntity());
                 final String msg = (friend != null ? ChatFormatting.DARK_PURPLE : ChatFormatting.RED) + (friend != null ? friend.getAlias() : event.getEntity().getName()) + ChatFormatting.WHITE + " has left your visual range.";
-                Seppuku.INSTANCE.getNotificationManager().addNotification("", msg);
-                Seppuku.INSTANCE.logChat(msg);
+
+                if (this.mode.getValue() == Mode.NOTIFICATION || this.mode.getValue() == Mode.BOTH) {
+                    Seppuku.INSTANCE.getNotificationManager().addNotification("", msg);
+                }
+
+                if (this.mode.getValue() == Mode.CHAT || this.mode.getValue() == Mode.BOTH) {
+                    Seppuku.INSTANCE.logChat(msg);
+                }
             }
         }
     }

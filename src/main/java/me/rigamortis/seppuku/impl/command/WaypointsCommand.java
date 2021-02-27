@@ -4,6 +4,8 @@ import me.rigamortis.seppuku.Seppuku;
 import me.rigamortis.seppuku.api.command.Command;
 import me.rigamortis.seppuku.api.util.MathUtil;
 import me.rigamortis.seppuku.api.util.StringUtil;
+import me.rigamortis.seppuku.impl.config.WaypointsConfig;
+import me.rigamortis.seppuku.impl.config.WorldConfig;
 import me.rigamortis.seppuku.impl.module.world.WaypointsModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.math.Vec3d;
@@ -19,11 +21,11 @@ import java.text.DecimalFormat;
  */
 public final class WaypointsCommand extends Command {
 
-    private String[] addAlias = new String[]{"Add", "A"};
-    private String[] removeAlias = new String[]{"Remove", "R", "Rem", "Delete", "Del"};
-    private String[] listAlias = new String[]{"List", "L"};
-    private String[] angleAlias = new String[]{"Angle", "Ang"};
-    private String[] clearAlias = new String[]{"Clear", "C"};
+    private final String[] addAlias = new String[]{"Add", "A"};
+    private final String[] removeAlias = new String[]{"Remove", "R", "Rem", "Delete", "Del"};
+    private final String[] listAlias = new String[]{"List", "L"};
+    private final String[] angleAlias = new String[]{"Angle", "Ang"};
+    private final String[] clearAlias = new String[]{"Clear", "C"};
 
     public WaypointsCommand() {
         super("Waypoints", new String[]{"Wp", "Waypoint"}, "Allows you to add waypoints", "Waypoints Add <Name>\n" +
@@ -73,7 +75,7 @@ public final class WaypointsCommand extends Command {
 
                                 Seppuku.INSTANCE.logChat("Added waypoint " + name + " at x:" + x + " y:" + y + " z:" + z);
                                 Seppuku.INSTANCE.getWaypointManager().getWaypointDataList().add(new WaypointsModule.WaypointData(host, name, Minecraft.getMinecraft().player.dimension, Double.parseDouble(split[3]), Double.parseDouble(split[4]), Double.parseDouble(split[5])));
-                                Seppuku.INSTANCE.getConfigManager().saveAll();
+                                Seppuku.INSTANCE.getConfigManager().save(WaypointsConfig.class);
                             } else {
                                 Seppuku.INSTANCE.errorChat("Unknown number " + "\247f\"" + split[5] + "\"");
                             }
@@ -87,7 +89,7 @@ public final class WaypointsCommand extends Command {
                     final DecimalFormat format = new DecimalFormat("#.#");
                     Seppuku.INSTANCE.logChat("Added waypoint " + name + " at x:" + format.format(Minecraft.getMinecraft().player.posX) + " y:" + format.format(Minecraft.getMinecraft().player.posY + Minecraft.getMinecraft().player.getEyeHeight()) + " z:" + format.format(Minecraft.getMinecraft().player.posZ));
                     Seppuku.INSTANCE.getWaypointManager().getWaypointDataList().add(new WaypointsModule.WaypointData(host, name, Minecraft.getMinecraft().player.dimension, Minecraft.getMinecraft().player.posX, Minecraft.getMinecraft().player.posY + Minecraft.getMinecraft().player.getEyeHeight(), Minecraft.getMinecraft().player.posZ));
-                    Seppuku.INSTANCE.getConfigManager().saveAll();
+                    Seppuku.INSTANCE.getConfigManager().save(WaypointsConfig.class);
                 }
             }
         } else if (equals(removeAlias, split[1])) {
@@ -103,8 +105,8 @@ public final class WaypointsCommand extends Command {
             if (waypointData != null) {
                 Seppuku.INSTANCE.logChat("Removed waypoint \247c" + waypointData.getName() + " \247f");
                 Seppuku.INSTANCE.getWaypointManager().getWaypointDataList().remove(waypointData);
-                Seppuku.INSTANCE.getConfigManager().saveAll();
-            }else{
+                Seppuku.INSTANCE.getConfigManager().save(WaypointsConfig.class);
+            } else {
                 Seppuku.INSTANCE.errorChat("Unknown waypoint " + "\247f\"" + name + "\"");
             }
         } else if (equals(listAlias, split[1])) {
@@ -115,28 +117,27 @@ public final class WaypointsCommand extends Command {
 
             int size = 0;
 
-            for(WaypointsModule.WaypointData waypointData : Seppuku.INSTANCE.getWaypointManager().getWaypointDataList()) {
-                if(waypointData.getHost().equals(host)) {
+            for (WaypointsModule.WaypointData waypointData : Seppuku.INSTANCE.getWaypointManager().getWaypointDataList()) {
+                if (waypointData.getHost().equals(host)) {
                     size++;
                 }
             }
 
-            if(size > 0) {
+            if (size > 0) {
                 final TextComponentString msg = new TextComponentString("\2477Waypoints for " + host + " [" + size + "]\247f ");
 
                 final DecimalFormat format = new DecimalFormat("#.#");
 
-                for (int i = 0; i < size; i++) {
-                    final WaypointsModule.WaypointData data = Seppuku.INSTANCE.getWaypointManager().getWaypointDataList().get(i);
-                    if(data != null && data.getHost().equals(host)) {
-                        msg.appendSibling(new TextComponentString("\247a" + data.getName() + "\2477" + ((i == size - 1) ? "" : ", "))
+                for (WaypointsModule.WaypointData data : Seppuku.INSTANCE.getWaypointManager().getWaypointDataList()) {
+                    if (data != null && data.getHost().equals(host)) {
+                        msg.appendSibling(new TextComponentString("\2477[\247a" + data.getName() + "\2477] ")
                                 .setStyle(new Style()
                                         .setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new TextComponentString("x: " + format.format(data.getX()) + " y: " + format.format(data.getY()) + " z: " + format.format(data.getZ()))))));
                     }
                 }
 
                 Minecraft.getMinecraft().ingameGUI.getChatGUI().printChatMessage(msg);
-            }else{
+            } else {
                 Seppuku.INSTANCE.logChat("You don't have any waypoints for " + host);
             }
         } else if (equals(angleAlias, split[1])) {
@@ -147,11 +148,11 @@ public final class WaypointsCommand extends Command {
             final String name = split[2];
             final WaypointsModule.WaypointData waypointData = Seppuku.INSTANCE.getWaypointManager().find(host, name);
 
-            if(waypointData != null) {
+            if (waypointData != null) {
                 float[] angle = MathUtil.calcAngle(Minecraft.getMinecraft().player.getPositionEyes(Minecraft.getMinecraft().getRenderPartialTicks()), new Vec3d(waypointData.getX(), waypointData.getY(), waypointData.getZ()));
                 Seppuku.INSTANCE.getRotationManager().setPlayerRotations(angle[0], angle[1]);
 
-                if(Minecraft.getMinecraft().player.getRidingEntity() != null) {
+                if (Minecraft.getMinecraft().player.getRidingEntity() != null) {
                     Minecraft.getMinecraft().player.getRidingEntity().rotationYaw = angle[0];
                     Minecraft.getMinecraft().player.getRidingEntity().rotationPitch = angle[1];
                 }
@@ -159,7 +160,7 @@ public final class WaypointsCommand extends Command {
                 final DecimalFormat format = new DecimalFormat("#.#");
                 Seppuku.INSTANCE.logChat("Set Angles to " + format.format(angle[0]) + ", " + format.format(angle[1]));
 
-            }else{
+            } else {
                 Seppuku.INSTANCE.errorChat("Unknown waypoint " + "\247f\"" + name + "\"");
             }
         } else if (equals(clearAlias, split[1])) {
@@ -170,11 +171,11 @@ public final class WaypointsCommand extends Command {
 
             final int waypoints = Seppuku.INSTANCE.getWaypointManager().getWaypointDataList().size();
 
-            if(waypoints > 0) {
+            if (waypoints > 0) {
                 Seppuku.INSTANCE.logChat("Removed \247c" + waypoints + "\247f waypoint" + (waypoints > 1 ? "s" : ""));
                 Seppuku.INSTANCE.getWaypointManager().getWaypointDataList().clear();
-                Seppuku.INSTANCE.getConfigManager().saveAll();
-            }else{
+                Seppuku.INSTANCE.getConfigManager().save(WorldConfig.class);
+            } else {
                 Seppuku.INSTANCE.logChat("You don't have any waypoints");
             }
         } else {

@@ -5,7 +5,6 @@ import me.rigamortis.seppuku.api.event.player.EventPlayerUpdate;
 import me.rigamortis.seppuku.api.module.Module;
 import me.rigamortis.seppuku.api.value.Value;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.inventory.GuiInventory;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.ClickType;
 import net.minecraft.item.Item;
@@ -18,47 +17,66 @@ import team.stiff.pomelo.impl.annotated.handler.annotation.Listener;
  */
 public final class AutoTotemModule extends Module {
 
-    public final Value<Float> health = new Value("Health", new String[]{"Hp"}, "The amount of health needed to acquire a totem.", 16.0f, 0.0f, 20.0f, 0.5f);
+    public final Value<Float> health = new Value<>("Health", new String[]{"Hp", "h"}, "The amount of health needed to acquire a totem.", 7.0f, 0.0f, 20.0f, 0.5f);
+    public final Value<Boolean> crystals = new Value<>("Crystals", new String[]{"cry", "c"}, "Go back to crystals in offhand after health is replenished.", false);
+    public final Value<Boolean> checkScreen = new Value<>("CheckScreen", new String[]{"screen", "check", "cs"}, "Checks if a screen is not opened to begin (usually disabled).", false);
 
     public AutoTotemModule() {
-        super("AutoTotem", new String[] {"Totem"}, "Automatically places a totem of undying in your offhand", "NONE", -1, ModuleType.COMBAT);
+        super("AutoTotem", new String[]{"Totem"}, "Automatically places a totem of undying in your offhand", "NONE", -1, ModuleType.COMBAT);
     }
 
     @Override
     public String getMetaData() {
-        return "" + this.getItemCount(Items.TOTEM_OF_UNDYING);
+        return "" + this.getTotemCount();
     }
 
     @Listener
     public void onUpdate(EventPlayerUpdate event) {
+        final Minecraft mc = Minecraft.getMinecraft();
+        if (this.checkScreen.getValue()) {
+            if (mc.currentScreen != null)
+                return;
+        }
+
+        final ItemStack offHand = mc.player.getHeldItemOffhand();
+
         if (event.getStage() == EventStageable.EventStage.PRE) {
-            final Minecraft mc = Minecraft.getMinecraft();
+            if (mc.player.getHealth() <= this.health.getValue()) {
+                if (offHand.getItem() == Items.TOTEM_OF_UNDYING) {
+                    return;
+                }
 
-            if(mc.currentScreen == null || mc.currentScreen instanceof GuiInventory) {
-                if(mc.player.getHealth() <= this.health.getValue()) {
-                    final ItemStack offHand = mc.player.getHeldItemOffhand();
+                final int totemSlot = this.getTotemSlot();
 
-                    if (offHand.getItem() == Items.TOTEM_OF_UNDYING) {
-                        return;
-                    }
+                if (totemSlot != -1) {
+                    mc.playerController.windowClick(mc.player.inventoryContainer.windowId, totemSlot, 0, ClickType.PICKUP, mc.player);
+                    mc.playerController.windowClick(mc.player.inventoryContainer.windowId, 45, 0, ClickType.PICKUP, mc.player);
+                    mc.playerController.windowClick(mc.player.inventoryContainer.windowId, totemSlot, 0, ClickType.PICKUP, mc.player);
+                    mc.playerController.updateController();
+                }
+            }
+        } else {
+            if (mc.player.getHealth() > this.health.getValue() && this.crystals.getValue()) {
+                if (offHand.getItem() == Items.END_CRYSTAL) {
+                    return;
+                }
 
-                    final int slot = this.getItemSlot(Items.TOTEM_OF_UNDYING);
+                final int crystalSlot = this.getCrystalSlot();
 
-                    if(slot != -1) {
-                        mc.playerController.windowClick(mc.player.inventoryContainer.windowId, slot, 0, ClickType.PICKUP, mc.player);
-                        mc.playerController.windowClick(mc.player.inventoryContainer.windowId, 45, 0, ClickType.PICKUP, mc.player);
-                        mc.playerController.windowClick(mc.player.inventoryContainer.windowId, slot, 0, ClickType.PICKUP, mc.player);
-                        mc.playerController.updateController();
-                    }
+                if (crystalSlot != -1) {
+                    mc.playerController.windowClick(mc.player.inventoryContainer.windowId, crystalSlot, 0, ClickType.PICKUP, mc.player);
+                    mc.playerController.windowClick(mc.player.inventoryContainer.windowId, 45, 0, ClickType.PICKUP, mc.player);
+                    mc.playerController.windowClick(mc.player.inventoryContainer.windowId, crystalSlot, 0, ClickType.PICKUP, mc.player);
+                    mc.playerController.updateController();
                 }
             }
         }
     }
 
-    private int getItemSlot(Item input) {
-        for(int i = 0; i < 36; i++) {
+    private int getCrystalSlot() {
+        for (int i = 0; i < 36; i++) {
             final Item item = Minecraft.getMinecraft().player.inventory.getStackInSlot(i).getItem();
-            if(item == input) {
+            if (item == Items.END_CRYSTAL) {
                 if (i < 9) {
                     i += 36;
                 }
@@ -68,17 +86,33 @@ public final class AutoTotemModule extends Module {
         return -1;
     }
 
-    private int getItemCount(Item input) {
-        int items = 0;
+    private int getTotemSlot() {
+        for (int i = 0; i < 36; i++) {
+            final Item item = Minecraft.getMinecraft().player.inventory.getStackInSlot(i).getItem();
+            if (item == Items.TOTEM_OF_UNDYING) {
+                if (i < 9) {
+                    i += 36;
+                }
+                return i;
+            }
+        }
+        return -1;
+    }
 
-        for(int i = 0; i < 45; i++) {
+    public int getTotemCount() {
+        int totems = 0;
+
+        if (Minecraft.getMinecraft().player == null)
+            return totems;
+
+        for (int i = 0; i < 45; i++) {
             final ItemStack stack = Minecraft.getMinecraft().player.inventory.getStackInSlot(i);
-            if(stack.getItem() == input) {
-                items += stack.getCount();
+            if (stack.getItem() == Items.TOTEM_OF_UNDYING) {
+                totems += stack.getCount();
             }
         }
 
-        return items;
+        return totems;
     }
 
 }

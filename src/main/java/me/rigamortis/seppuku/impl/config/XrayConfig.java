@@ -7,6 +7,7 @@ import me.rigamortis.seppuku.Seppuku;
 import me.rigamortis.seppuku.api.config.Configurable;
 import me.rigamortis.seppuku.api.util.FileUtil;
 import me.rigamortis.seppuku.impl.module.render.XrayModule;
+import net.minecraft.block.Block;
 
 import java.io.File;
 
@@ -15,10 +16,10 @@ import java.io.File;
  */
 public final class XrayConfig extends Configurable {
 
-    private XrayModule xrayModule;
+    private final XrayModule xrayModule;
 
     public XrayConfig(File dir) {
-        super(FileUtil.createJsonFile(dir, "Xray"));
+        super(FileUtil.createJsonFile(dir, "XrayIds"));
         this.xrayModule = (XrayModule) Seppuku.INSTANCE.getModuleManager().find("Xray");
     }
 
@@ -29,10 +30,22 @@ public final class XrayConfig extends Configurable {
         if (this.xrayModule == null)
             return;
 
-        final JsonArray xrayIdsJsonArray = this.getJsonObject().get("BlockIds").getAsJsonArray();
+        JsonArray xrayIdsJsonArray = null;
 
-        for (JsonElement jsonElement : xrayIdsJsonArray) {
-            this.xrayModule.add(jsonElement.getAsInt());
+        final JsonElement blockIds = this.getJsonObject().get("XrayBlockIds");
+        if (blockIds != null)
+            xrayIdsJsonArray = blockIds.getAsJsonArray();
+
+        final XrayModule xrayModule = (XrayModule) Seppuku.INSTANCE.getModuleManager().find("Xray");
+        if (xrayModule != null) {
+            if (xrayIdsJsonArray != null) {
+                for (JsonElement jsonElement : xrayIdsJsonArray) {
+                    xrayModule.add(jsonElement.getAsInt());
+                }
+            }
+            if (xrayModule.getBlocks().getValue().isEmpty()) {
+                xrayModule.add("diamond_ore");
+            }
         }
     }
 
@@ -44,10 +57,10 @@ public final class XrayConfig extends Configurable {
         JsonObject save = new JsonObject();
 
         JsonArray xrayIdsJsonArray = new JsonArray();
-        for (Integer i : this.xrayModule.getIds())
-            xrayIdsJsonArray.add(i);
+        for (Block block : this.xrayModule.getBlocks().getValue())
+            xrayIdsJsonArray.add(Block.getIdFromBlock(block));
 
-        save.add("BlockIds", xrayIdsJsonArray);
+        save.add("XrayBlockIds", xrayIdsJsonArray);
 
         this.saveJsonObjectToFile(save);
     }
